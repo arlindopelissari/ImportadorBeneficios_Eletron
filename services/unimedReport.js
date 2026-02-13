@@ -155,12 +155,38 @@ const tableRows = rowsDemitidos.map(r => {
 }
 
 async function generateUnimedReport(db, outPath) {
-  // 1) Validação pendências
-  const pendencias = db.prepare(SQL_VALIDACAO).all();
+  // 1) Validação pendências (separadas por tipo)
+  const pendenciasDependenteSemResp = db.prepare(SQL_VALIDACAO_DEPENDENTE_SEM_RESP).all();
+  const pendenciasTpNaoDSemFuncionario = db.prepare(SQL_VALIDACAO_TP_NAO_D_SEM_FUNCIONARIO).all();
+
+  const pendencias = [
+    ...pendenciasDependenteSemResp.map((r) => ({
+      tipo_pendencia: 'DEPENDENTE_SEM_CPFRESP',
+      ...r,
+    })),
+    ...pendenciasTpNaoDSemFuncionario.map((r) => ({
+      tipo_pendencia: 'TP_NAO_D_SEM_FUNCIONARIO',
+      ...r,
+    })),
+  ];
+
   if (pendencias.length > 0) {
+    const details = [];
+    if (pendenciasDependenteSemResp.length > 0) {
+      details.push(`${pendenciasDependenteSemResp.length} dependente(s) com cpfresponsavel em branco`);
+    }
+    if (pendenciasTpNaoDSemFuncionario.length > 0) {
+      details.push(`${pendenciasTpNaoDSemFuncionario.length} beneficiario(s) tipo diferente de D sem funcionario`);
+    }
+
     return {
       ok: false,
+      error: `Relatorio bloqueado por pendencias: ${details.join(' | ')}`,
       pendencias,
+      pendenciasByType: {
+        dependenteSemCpfResp: pendenciasDependenteSemResp,
+        tpNaoDSemFuncionario: pendenciasTpNaoDSemFuncionario,
+      },
       pendenciasPreview: rowsToPreview(pendencias),
     };
   }
@@ -189,35 +215,49 @@ async function generateUnimedReport(db, outPath) {
 // QUERIES (do usuário)
 // =========================
 
-// Validação: CPF sem vínculo com funcionário
-const SQL_VALIDACAO = `
-WITH SemResp AS (
-  SELECT
-    p.*,
-    COALESCE(
-      (SELECT d.cpfresponsavel
-       FROM unimed_dependente d
-       WHERE d.cpf = p.cpf
-       LIMIT 1),
-      p.cpf
-    ) AS cpf_func
-  FROM planounimed p
-)
+// Validação 1: Dependentes (tp='D') com cpfresponsavel em branco
+const SQL_VALIDACAO_DEPENDENTE_SEM_RESP = `
 SELECT
-  b.beneficiario,
-  b.cpf,
+  p.beneficiario,
+  p.cpf,
+  p.tp,
+  COALESCE(d.cpfresponsavel, '') AS cpf_func,
   SUM(
     CAST(
-      REPLACE(REPLACE(REPLACE(b.valor,'R$',''),' ',''),',','.') AS REAL
+      REPLACE(REPLACE(REPLACE(p.valor,'R$',''),' ',''),',','.') AS REAL
     )
   ) AS total_valor
-FROM SemResp b
-LEFT JOIN funcionario f
-  ON f.CPF = b.cpf_func
+FROM planounimed p
+LEFT JOIN unimed_dependente d
+  ON d.cpf = p.cpf
 WHERE
+  TRIM(COALESCE(p.tp, '')) = 'D'
+  AND TRIM(COALESCE(d.cpfresponsavel, '')) = ''
+GROUP BY p.beneficiario, p.cpf, p.tp, COALESCE(d.cpfresponsavel, '')
+ORDER BY p.beneficiario;
+`;
+
+// Validação 2: tp diferente de D sem vínculo na tabela funcionario
+const SQL_VALIDACAO_TP_NAO_D_SEM_FUNCIONARIO = `
+SELECT
+  p.beneficiario,
+  p.cpf,
+  p.tp,
+  p.cpf AS cpf_func,
+  SUM(
+    CAST(
+      REPLACE(REPLACE(REPLACE(p.valor,'R$',''),' ',''),',','.') AS REAL
+    )
+  ) AS total_valor
+FROM planounimed p
+LEFT JOIN funcionario f
+  ON REPLACE(REPLACE(TRIM(f.CPF),'.',''),'-','') = REPLACE(REPLACE(TRIM(p.cpf),'.',''),'-','')
+WHERE
+  TRIM(COALESCE(p.tp, '')) <> 'D'
+  AND
   f.CPF IS NULL
-GROUP BY b.beneficiario, b.cpf
-ORDER BY b.beneficiario;
+GROUP BY p.beneficiario, p.cpf, p.tp
+ORDER BY p.beneficiario;
 `;
 
 // RESUMO por CCustoDescricao (o que você mostrou no print)

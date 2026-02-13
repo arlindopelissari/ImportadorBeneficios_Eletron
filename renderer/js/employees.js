@@ -14,6 +14,12 @@ async function refreshGrid() {
   renderTable('empTable', preview);
 }
 
+function clearPreview() {
+  const host = $('empTable');
+  if (!host) return;
+  host.innerHTML = '<div class="muted" style="padding:10px;">Prévia limpa. Aguardando atualização...</div>';
+}
+
 window.addEventListener('DOMContentLoaded', () => {
   setupGlobalHeader({ activePage: 'employees.html', pageTitle: 'Funcionarios (XLSX)' });
 
@@ -29,6 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!xlsxPath) return alert('Selecione um XLSX.');
 
     setBusy(true);
+    clearPreview();
     setEmpProgress(10, 'Importando...');
 
     try {
@@ -36,6 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       if (!res?.ok) throw new Error(res?.error || 'Falha na importacao');
 
+      alert('Importacao concluida com sucesso.');
       await refreshGrid();
       setEmpProgress(100, 'Importacao OK');
     } catch (e) {

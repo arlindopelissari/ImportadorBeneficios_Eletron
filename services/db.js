@@ -262,16 +262,36 @@ function populateUnimedDependentesFromPlano(db) {
   ensureSchema(db);
   migrateUnimedDependenteUniqueCpf(db);
 
+  const sqlSource = `
+    WITH src AS (
+      SELECT
+        TRIM(d.cpf) AS cpf,
+        MAX(TRIM(d.beneficiario)) AS beneficiario
+      FROM planounimed d
+      WHERE d.tp = 'D'
+        AND IFNULL(TRIM(d.beneficiario), '') <> ''
+        AND IFNULL(TRIM(d.cpf), '') <> ''
+      GROUP BY TRIM(d.cpf)
+    )
+  `;
+
+  const toInsert = db.prepare(`
+    ${sqlSource}
+    SELECT COUNT(*) AS c
+    FROM src s
+    LEFT JOIN unimed_dependente u ON u.cpf = s.cpf
+    WHERE u.cpf IS NULL;
+  `).get().c;
+
   const stmt = db.prepare(`
+    ${sqlSource}
     INSERT INTO unimed_dependente (beneficiario, cpf, cpfresponsavel)
     SELECT
-      TRIM(d.beneficiario),
-      TRIM(d.cpf),
+      s.beneficiario,
+      s.cpf,
       '' AS cpfresponsavel
-    FROM planounimed d
-    WHERE d.tp = 'D'
-      AND IFNULL(TRIM(d.beneficiario), '') <> ''
-      AND IFNULL(TRIM(d.cpf), '') <> ''
+    FROM src s
+    WHERE 1=1
     ON CONFLICT(cpf) DO UPDATE SET
       beneficiario = excluded.beneficiario,
       cpfresponsavel = CASE
@@ -280,7 +300,8 @@ function populateUnimedDependentesFromPlano(db) {
       END;
   `);
 
-  return stmt.run().changes;
+  stmt.run();
+  return toInsert;
 }
 
 module.exports = {

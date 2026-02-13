@@ -54,15 +54,54 @@ function setReportMenuEnabled(enabled) {
   btn.disabled = !enabled;
 }
 
+function buildReportFailureMessage(res) {
+  if (!res) return 'Falha ao gerar relatorio.';
+  if (res.error) return res.error;
+
+  const byType = res.pendenciasByType || {};
+  const depSemResp = Array.isArray(byType.dependenteSemCpfResp) ? byType.dependenteSemCpfResp.length : 0;
+  const tpNaoDSemFunc = Array.isArray(byType.tpNaoDSemFuncionario) ? byType.tpNaoDSemFuncionario.length : 0;
+
+  if (depSemResp || tpNaoDSemFunc) {
+    const parts = [];
+    if (depSemResp) parts.push(`${depSemResp} dependente(s) com cpfresponsavel em branco`);
+    if (tpNaoDSemFunc) parts.push(`${tpNaoDSemFunc} beneficiario(s) tipo diferente de D sem funcionario`);
+    return `Relatorio bloqueado por pendencias: ${parts.join(' | ')}`;
+  }
+
+  if (Array.isArray(res.pendencias) && res.pendencias.length > 0) {
+    return `Relatorio bloqueado por pendencias (${res.pendencias.length}).`;
+  }
+
+  return 'Falha ao gerar relatorio.';
+}
+
+async function handleReportSuccess(filePath) {
+  if (!filePath) {
+    alert('Relatorio gerado com sucesso.');
+    return;
+  }
+
+  if (window.api?.postReportActions) {
+    const actionRes = await window.api.postReportActions(filePath);
+    if (!actionRes?.ok && actionRes?.error) {
+      alert(`Relatorio gerado, mas houve falha ao abrir: ${actionRes.error}`);
+    }
+    return;
+  }
+
+  alert(`Relatorio gerado:\n${filePath}`);
+}
+
 async function defaultGenerateReport() {
   try {
     const res = await window.api.generateUnimedReport();
     if (res?.canceled) return;
     if (!res?.ok) {
-      alert(res?.error || 'Falha ao gerar relatorio.');
+      alert(buildReportFailureMessage(res));
       return;
     }
-    alert(`Relatorio gerado:\n${res.file || ''}`);
+    await handleReportSuccess(res.file);
   } catch (e) {
     alert(String(e?.message || e));
   }

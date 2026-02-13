@@ -74,20 +74,22 @@ async function generateUnimedReportFromMenu() {
         (res?.pendenciasPreview && res.pendenciasPreview.rows?.length) ? res.pendenciasPreview :
         (Array.isArray(res?.pendencias) && res.pendencias.length) ? rowsToPreviewLocal(res.pendencias) :
         null;
+      const reason = buildReportFailureMessage(res);
 
       if (preview && preview.rows?.length) {
         openPendenciasModal(preview);
         setPlanProgress(0, 'Pendencias encontradas.');
+        alert(reason);
         return;
       }
 
       setPlanProgress(0, 'Erro.');
-      return alert(res?.error || 'Falha ao gerar relatorio.');
+      return alert(reason);
     }
 
     setPlanProgress(100, 'OK. Relatorio gerado.');
     appendLog(`Relatorio gerado: ${res.file}`);
-    alert(`Relatorio gerado:\n${res.file}`);
+    await handleReportSuccess(res.file);
   } catch (e) {
     setPlanProgress(0, 'Erro.');
     alert(String(e?.message || e));

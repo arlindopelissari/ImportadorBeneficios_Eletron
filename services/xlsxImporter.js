@@ -30,6 +30,23 @@ function validateHeaders(headers) {
   if (missing.length) throw new Error(`Arquivo incompatível. Campo obrigatório ausente: ${missing.join(', ')}`);
 }
 
+function normalizeCpf(cpf) {
+  return String(cpf || '').replace(/\D/g, '');
+}
+
+function isCadastroNewer(a, b) {
+  const da = String(a || '').replace(/\D/g, '');
+  const db = String(b || '').replace(/\D/g, '');
+
+  const na = da ? Number(da) : Number.NaN;
+  const nb = db ? Number(db) : Number.NaN;
+
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na > nb;
+  if (Number.isFinite(na) && !Number.isFinite(nb)) return true;
+  if (!Number.isFinite(na) && Number.isFinite(nb)) return false;
+  return String(a || '').trim().localeCompare(String(b || '').trim(), 'pt-BR') > 0;
+}
+
 function importEmployeesXlsx(db, xlsxPath) {
   if (!xlsxPath) throw new Error('Selecione um XLSX válido.');
 
@@ -77,6 +94,9 @@ function importEmployeesXlsx(db, xlsxPath) {
     // ✅ limpa antes de importar
     clearFunc.run();
 
+    const byCpf = new Map();
+    const withoutCpf = [];
+
     for (let r = 1; r < rows.length; r++) {
       const line = rows[r];
       if (!line || !line.length) continue;
@@ -86,6 +106,24 @@ function importEmployeesXlsx(db, xlsxPath) {
 
       if (!rec.Empresa || !rec.Cadastro) continue;
 
+      const cpfKey = normalizeCpf(rec.CPF);
+      if (!cpfKey) {
+        withoutCpf.push(rec);
+        continue;
+      }
+
+      const prev = byCpf.get(cpfKey);
+      if (!prev || isCadastroNewer(rec.Cadastro, prev.Cadastro)) {
+        byCpf.set(cpfKey, rec);
+      }
+    }
+
+    for (const rec of byCpf.values()) {
+      upsert.run(rec);
+      importedRows++;
+    }
+
+    for (const rec of withoutCpf) {
       upsert.run(rec);
       importedRows++;
     }

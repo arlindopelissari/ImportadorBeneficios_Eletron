@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   dependenteUpdateCpfResp: (payload) => ipcRenderer.invoke('dependente-update-cpfresp', payload),
 
   generateUnimedReport: () => ipcRenderer.invoke('generate-unimed-report'),
+  postReportActions: (filePath) => ipcRenderer.invoke('post-report-actions', filePath),
 
   onPythonLog: (cb) => {
     ipcRenderer.removeAllListeners('python-log');

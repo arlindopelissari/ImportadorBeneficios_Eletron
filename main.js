@@ -1,6 +1,6 @@
 // main.js (CommonJS 100% — recomendado pra Electron com require)
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 
 const {
@@ -22,6 +22,8 @@ const { runPythonImport } = require('./services/pythonRunner');
 const { generateUnimedReport } = require('./services/unimedReport');
 
 let mainWindow;
+let lastXlsxDir = null;
+let lastPdfDir = null;
 
 // ============================
 // Paths (DEV vs PACKAGED)
@@ -75,6 +77,8 @@ function createWindow() {
 // ============================
 app.whenReady().then(() => {
   debugPaths();
+  lastXlsxDir = app.getPath('documents');
+  lastPdfDir = app.getPath('documents');
 
   const db = openDb();
   ensureSchema(db);
@@ -97,20 +101,24 @@ app.on('window-all-closed', () => {
 ipcMain.handle('pick-xlsx', async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
     title: 'Selecione o XLSX de funcionários',
+    defaultPath: lastXlsxDir || app.getPath('documents'),
     properties: ['openFile'],
     filters: [{ name: 'Excel', extensions: ['xlsx'] }]
   });
   if (res.canceled || res.filePaths.length === 0) return null;
+  lastXlsxDir = path.dirname(res.filePaths[0]);
   return res.filePaths[0];
 });
 
 ipcMain.handle('pick-pdf', async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
     title: 'Selecione o PDF de planos',
+    defaultPath: lastPdfDir || app.getPath('documents'),
     properties: ['openFile'],
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
   });
   if (res.canceled || res.filePaths.length === 0) return null;
+  lastPdfDir = path.dirname(res.filePaths[0]);
   return res.filePaths[0];
 });
 
@@ -293,6 +301,38 @@ ipcMain.handle('generate-unimed-report', async () => {
     return { ok: false, error: String(e?.message || e) };
   } finally {
     try { if (db) db.close(); } catch {}
+  }
+});
+
+ipcMain.handle('post-report-actions', async (_evt, filePath) => {
+  const target = String(filePath || '').trim();
+  if (!target) return { ok: false, error: 'Arquivo do relatório inválido.' };
+
+  const res = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    buttons: ['Abrir arquivo', 'Abrir pasta', 'Fechar'],
+    defaultId: 0,
+    cancelId: 2,
+    title: 'Relatório gerado',
+    message: 'O que deseja fazer agora?',
+    detail: target
+  });
+
+  try {
+    if (res.response === 0) {
+      const err = await shell.openPath(target);
+      if (err) return { ok: false, error: err };
+      return { ok: true, action: 'open-file' };
+    }
+
+    if (res.response === 1) {
+      shell.showItemInFolder(target);
+      return { ok: true, action: 'open-folder' };
+    }
+
+    return { ok: true, action: 'close' };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
   }
 });
 
