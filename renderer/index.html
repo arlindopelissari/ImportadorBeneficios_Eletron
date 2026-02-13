@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Importador - Dashboard</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="h1">Importador (XLSX + PDF)</div>
+    <div class="nav" id="nav"></div>
+  </div>
+
+  <div class="row">
+    <div class="card col">
+      <div class="title">Atalhos</div>
+      <div class="line">
+        <a class="btn" href="./employees.html">Ir para Funcionários</a>
+        <a class="btn" href="./benefits.html">Ir para Planos</a>
+        <a class="btn" href="./maintenance.html">Ir para Manutenção</a>
+      </div>
+      <div class="muted">Separado por telas = menos bug, mais previsível.</div>
+    </div>
+
+    <div class="card col">
+      <div class="title">Status rápido</div>
+      <div class="line">
+        <button class="btn" id="btnRefresh">Atualizar</button>
+        <span class="muted" id="status">Pronto</span>
+      </div>
+
+      <div class="row">
+        <div class="card" style="flex:1;">
+          <div class="title">Funcionários</div>
+          <div class="muted">Prévia (10 linhas)</div>
+          <div class="grid-wrapper" style="height:220px;"><div id="empTable"></div></div>
+        </div>
+        <div class="card" style="flex:1;">
+          <div class="title">Dependentes</div>
+          <div class="muted">Prévia (10 linhas)</div>
+          <div class="grid-wrapper" style="height:220px;"><div id="depTable"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/dashboard.js"></script>
+</body>
+</html>

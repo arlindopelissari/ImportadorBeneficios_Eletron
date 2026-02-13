@@ -1,0 +1,107 @@
+{
+  "name": "importador-beneficios-eletron",
+  "version": "2.0.0",
+  "description": "Importador de Benefícios (Eletron)",
+  "main": "main.js",
+  "author": "Eletron",
+  "private": true,
+  "type": "commonjs",
+
+  "scripts": {
+    "start": "electron .",
+    "postinstall": "electron-builder install-app-deps",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dist": "npm run clean && electron-builder",
+    "clean": "rmdir /s /q dist_installer && rmdir /s /q dist && rmdir /s /q win-unpacked 2>nul || exit 0",
+    "dist:win": "npm run clean && electron-builder --win --x64"
+  },
+
+  "dependencies": {
+    "better-sqlite3": "^11.0.0",
+    "exceljs": "^4.4.0",
+    "xlsx": "^0.18.5"
+  },
+
+  "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+
+  "build": {
+    "appId": "br.com.eletron.importadorbeneficios",
+    "productName": "Importador Benefícios",
+
+    "directories": {
+      "output": "dist_installer"
+    },
+
+    "files": [
+      "**/*",
+
+      "!dist_installer/**",
+      "!win-unpacked/**",
+      "!dist/**",
+      "!out/**",
+      "!release/**",
+      "!build/**",
+      "!coverage/**",
+      "!.git/**",
+      "!.github/**",
+      "!.vscode/**",
+      "!.idea/**",
+      "!node_modules/.cache/**",
+
+      "!**/*.log",
+      "!**/*.tmp",
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/*.md",
+      "!**/*.yml",
+      "!**/*.yaml",
+      "!**/*.ps1",
+      "!**/*.bat",
+      "!**/*.cmd",
+
+      "!**/*.pdf",
+      "!**/*.xlsx"
+    ],
+
+    "asar": true,
+
+    "extraResources": [
+      {
+        "from": "python-runtime",
+        "to": "python-runtime",
+        "filter": ["**/*"]
+      }
+    ],
+
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+
+    "nsis": {
+      "oneClick": false,
+
+      "perMachine": false,
+      "allowElevation": false,
+
+      "allowToChangeInstallationDirectory": true,
+
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Importador Benefícios",
+
+      "runAfterFinish": true
+    }
+  }
+}

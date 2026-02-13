@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manutenção</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+   <div class="header">
+    <div class="h1">Manutenção</div>
+    <div class="nav" id="nav"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">Dependentes (Unimed)</div>
+
+    <div class="line">
+      <button class="btn" id="btnRefreshDep">Atualizar</button>
+      <span class="muted">
+        Editar CPF do responsável ou deletar direto na grid.
+      </span>
+      <span class="status" id="mStatus">Pronto</span>
+    </div>
+
+    <div class="grid-wrapper">
+      <div id="depTable"></div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/maintenance.js"></script>
+</body>
+</html>

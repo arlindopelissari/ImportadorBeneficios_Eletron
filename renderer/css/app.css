@@ -1,0 +1,24 @@
+:root { --gap: 16px; --radius: 16px; }
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin: 16px; color:#111; }
+.header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 12px; }
+.h1 { font-size: 22px; font-weight: 800; }
+.nav { display:flex; gap:10px; flex-wrap:wrap; }
+a.btn, button.btn { padding: 8px 12px; border:1px solid #ddd; border-radius: 12px; background:#fff; cursor:pointer; text-decoration:none; color:#111; }
+a.btn:hover, button.btn:hover { background:#fafafa; }
+.card { border: 1px solid #ddd; border-radius: var(--radius); padding: 14px; }
+.title { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
+.row { display:flex; gap: var(--gap); align-items: stretch; flex-wrap: wrap; }
+.col { flex: 1 1 520px; min-width: 520px; }
+.line { display:flex; gap:10px; align-items:center; margin: 10px 0; flex-wrap: wrap; }
+input[type=text], input[type=number] { flex:1; padding:8px; min-width:240px; border:1px solid #ddd; border-radius: 10px; }
+select { padding:8px; border:1px solid #ddd; border-radius: 10px; }
+progress { width: 240px; height: 16px; }
+.muted { color:#666; font-size:12px; }
+.status { margin-left:10px; }
+.grid-wrapper { width:100%; height: 420px; overflow:auto; border:1px solid #eee; border-radius: 12px; }
+table { border-collapse: collapse; font-size: 12px; min-width: 100%; white-space: nowrap; }
+th, td { border: 1px solid #eee; padding: 6px; text-align:left; }
+th { background:#fafafa; position: sticky; top:0; z-index:1; }
+textarea { width:100%; height:140px; border:1px solid #ddd; border-radius: 12px; padding:10px; }
+.badge { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid #ddd; background:#fafafa; }

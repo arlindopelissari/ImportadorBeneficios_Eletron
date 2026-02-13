@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Planos (PDF)</title>
+  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/modal.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="h1">Planos (PDF)</div>
+    <div class="nav" id="nav"></div>
+  </div>
+
+  <div class="card">
+    <div class="title">Importação (Python)</div>
+
+    <div class="line">
+      <button class="btn" id="btnPickPdf">Selecionar PDF</button>
+      <input id="pdfPath" type="text" readonly />
+    </div>
+
+    <div class="line">
+      <span>Fonte</span>
+      <select id="planSource">
+        <option>Unimed</option>
+        <option>UpHealth</option>
+        <option>OdontoPrev</option>
+      </select>
+
+      <button class="btn" id="btnImportPdf">Importar</button>
+
+      <button class="btn" id="btnRelatorioUnimed" disabled
+              title="Gera XLSX (Unimed) por Centro de Custo">
+        Gerar Relatório
+      </button>
+    </div>
+
+    <div class="line">
+      <progress id="planProg" max="100" value="0"></progress>
+      <span class="status" id="planStatus">Pronto</span>
+    </div>
+
+    <div style="margin-top:10px;">
+      <textarea id="log" readonly></textarea>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="title">Prévia do plano selecionado</div>
+    <div class="grid-wrapper">
+      <div id="planTable"></div>
+    </div>
+  </div>
+
+  <!-- MODAL Pendências -->
+  <div id="modalPendencias" class="modal" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>Pendências encontradas</span>
+        <button id="btnClosePendencias" class="modal-close" title="Fechar">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-text">
+          Existem beneficiários/dependentes sem vínculo com funcionário. Corrija antes de gerar o relatório.
+        </p>
+
+        <div class="grid-wrapper">
+          <div id="modalPendenciasTable"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn" id="btnFecharPendencias">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/benefits.js"></script>
+</body>
+</html>
