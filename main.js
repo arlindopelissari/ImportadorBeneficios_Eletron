@@ -66,7 +66,8 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  //mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.loadFile(path.join(__dirname, 'renderer', 'employees.html'));
 }
 
 // ============================
@@ -122,7 +123,7 @@ ipcMain.handle('get-employees-preview', async (_evt, maxRows = 500) => {
     ensureSchema(db);
     return getEmployeesPreview(db, maxRows);
   } finally {
-    db.close();
+    db.close(); 
   }
 });
 
@@ -294,3 +295,4 @@ ipcMain.handle('generate-unimed-report', async () => {
     try { if (db) db.close(); } catch {}
   }
 });
+

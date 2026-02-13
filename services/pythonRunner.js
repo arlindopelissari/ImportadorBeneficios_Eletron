@@ -5,21 +5,35 @@ const fs = require('fs');
 const { app } = require('electron');
 
 function resolveDbPath() {
-  // sempre no userData (sem admin)
   return path.join(app.getPath('userData'), 'sys.db');
 }
 
 function resolvePythonRuntimeDir() {
-  // ✅ Instalado: extraResources -> process.resourcesPath
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'python-runtime');
   }
-
-  // ✅ DEV: pega a raiz do app (bem mais confiável que __dirname)
-  // Se seu main.js estiver em /app/main.js, app.getAppPath() tende a apontar pra /app
-  // Ajuste se seu projeto for diferente.
   const appPath = app.getAppPath();
   return path.join(appPath, 'python-runtime');
+}
+
+// ✅ NOVO: normaliza caminho vindo do renderer
+function normalizeFilePath(v) {
+  if (!v) return '';
+
+  if (typeof v === 'string') return v;
+
+  if (typeof v === 'object') {
+    const p =
+      v.filePath ||
+      v.path ||
+      (Array.isArray(v.filePaths) ? v.filePaths[0] : null) ||
+      (Array.isArray(v.paths) ? v.paths[0] : null) ||
+      '';
+
+    return typeof p === 'string' ? p : '';
+  }
+
+  return '';
 }
 
 function runPythonImport({ source, pdfPath, onLine }) {
@@ -50,19 +64,23 @@ function runPythonImport({ source, pdfPath, onLine }) {
       return reject(new Error(`Script Python não encontrado: ${scriptPath}`));
     }
 
-    const pdfAbs = path.isAbsolute(pdfPath) ? pdfPath : path.resolve(pdfPath);
+    // ✅ AQUI: saneia antes de mexer com path
+    const pdfNorm = normalizeFilePath(pdfPath);
+    if (!pdfNorm) {
+      return reject(new Error(`PDF inválido (vazio ou formato errado). Recebido: ${Object.prototype.toString.call(pdfPath)}`));
+    }
+
+    const pdfAbs = path.isAbsolute(pdfNorm) ? pdfNorm : path.resolve(pdfNorm);
     if (!fs.existsSync(pdfAbs)) {
       return reject(new Error(`PDF não encontrado: ${pdfAbs}`));
     }
 
     const dbPath = resolveDbPath();
 
-    // -u: stdout/stderr sem buffer (pra log em tempo real)
     const args = ['-u', scriptPath, '--pdf', pdfAbs, '--db', dbPath];
 
     let stderrAll = '';
 
-    // ✅ AQUI era o bug: tem que ser spawn(...)
     const py = spawn(pythonExe, args, {
       cwd: basePython,
       windowsHide: true

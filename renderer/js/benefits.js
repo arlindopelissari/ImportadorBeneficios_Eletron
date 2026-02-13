@@ -2,7 +2,7 @@ function setBusy(isBusy) {
   $('btnPickPdf').disabled = isBusy;
   $('btnImportPdf').disabled = isBusy;
   $('planSource').disabled = isBusy;
-  if (isBusy) $('btnRelatorioUnimed').disabled = true;
+  if (isBusy) setReportMenuEnabled(false);
 }
 
 function setPlanProgress(v, status) {
@@ -50,19 +50,65 @@ async function refreshPlansGrid() {
 
   const hasRows = !!(preview && preview.rows && preview.rows.length > 0);
   const isUnimed = String(source || '').toLowerCase() === 'unimed';
-  $('btnRelatorioUnimed').disabled = !(isUnimed && hasRows);
+  setReportMenuEnabled(isUnimed && hasRows);
+}
+
+async function generateUnimedReportFromMenu() {
+  const source = $('planSource').value;
+  if (String(source || '').toLowerCase() !== 'unimed') {
+    return alert('Relatorio disponivel somente para Unimed (por enquanto).');
+  }
+
+  setBusy(true);
+  setPlanProgress(5, 'Gerando relatorio...');
+  try {
+    const res = await window.api.generateUnimedReport();
+
+    if (res?.canceled) {
+      setPlanProgress(0, 'Cancelado.');
+      return;
+    }
+
+    if (!res?.ok) {
+      const preview =
+        (res?.pendenciasPreview && res.pendenciasPreview.rows?.length) ? res.pendenciasPreview :
+        (Array.isArray(res?.pendencias) && res.pendencias.length) ? rowsToPreviewLocal(res.pendencias) :
+        null;
+
+      if (preview && preview.rows?.length) {
+        openPendenciasModal(preview);
+        setPlanProgress(0, 'Pendencias encontradas.');
+        return;
+      }
+
+      setPlanProgress(0, 'Erro.');
+      return alert(res?.error || 'Falha ao gerar relatorio.');
+    }
+
+    setPlanProgress(100, 'OK. Relatorio gerado.');
+    appendLog(`Relatorio gerado: ${res.file}`);
+    alert(`Relatorio gerado:\n${res.file}`);
+  } catch (e) {
+    setPlanProgress(0, 'Erro.');
+    alert(String(e?.message || e));
+  } finally {
+    setBusy(false);
+    refreshPlansGrid().catch(() => {});
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  $('nav').innerHTML = navHtml('benefits.html');
+  setupGlobalHeader({
+    activePage: 'benefits.html',
+    pageTitle: 'Planos (PDF)',
+    onGenerateReport: generateUnimedReportFromMenu
+  });
 
   window.api.onPythonLog((line) => appendLog(line));
 
-  // Modal events
   $('btnClosePendencias').addEventListener('click', closePendenciasModal);
   $('btnFecharPendencias').addEventListener('click', closePendenciasModal);
 
-  // Fecha modal clicando fora
   $('modalPendencias').addEventListener('click', (e) => {
     if (e.target && e.target.id === 'modalPendencias') closePendenciasModal();
   });
@@ -93,7 +139,7 @@ window.addEventListener('DOMContentLoaded', () => {
         return alert(res?.error || 'Falha ao importar PDF.');
       }
 
-      setPlanProgress(75, 'Atualizando prévia...');
+      setPlanProgress(75, 'Atualizando previa...');
       await refreshPlansGrid();
 
       setPlanProgress(100, 'OK. PDF importado.');
@@ -102,51 +148,6 @@ window.addEventListener('DOMContentLoaded', () => {
       alert(String(e?.message || e));
     } finally {
       setBusy(false);
-    }
-  });
-
-  $('btnRelatorioUnimed').addEventListener('click', async () => {
-    const source = $('planSource').value;
-    if (String(source || '').toLowerCase() !== 'unimed') {
-      return alert('Relatório disponível somente para Unimed (por enquanto).');
-    }
-
-    setBusy(true);
-    setPlanProgress(5, 'Gerando relatório...');
-    try {
-      const res = await window.api.generateUnimedReport();
-
-      if (res?.canceled) {
-        setPlanProgress(0, 'Cancelado.');
-        return;
-      }
-
-      if (!res?.ok) {
-        // regra de negócio: pendências => abre popup e cancela relatório
-        const preview =
-          (res?.pendenciasPreview && res.pendenciasPreview.rows?.length) ? res.pendenciasPreview :
-          (Array.isArray(res?.pendencias) && res.pendencias.length) ? rowsToPreviewLocal(res.pendencias) :
-          null;
-
-        if (preview && preview.rows?.length) {
-          openPendenciasModal(preview);
-          setPlanProgress(0, 'Pendências encontradas.');
-          return;
-        }
-
-        setPlanProgress(0, 'Erro.');
-        return alert(res?.error || 'Falha ao gerar relatório.');
-      }
-
-      setPlanProgress(100, 'OK. Relatório gerado.');
-      appendLog(`Relatório gerado: ${res.file}`);
-      alert(`Relatório gerado:\n${res.file}`);
-    } catch (e) {
-      setPlanProgress(0, 'Erro.');
-      alert(String(e?.message || e));
-    } finally {
-      setBusy(false);
-      refreshPlansGrid().catch(() => {});
     }
   });
 

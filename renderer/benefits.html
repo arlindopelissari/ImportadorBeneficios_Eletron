@@ -8,62 +8,70 @@
 </head>
 <body>
   <div class="header">
-    <div class="h1">Planos (PDF)</div>
     <div class="nav" id="nav"></div>
-  </div>
 
-  <div class="card">
-    <div class="title">Importação (Python)</div>
-
-    <div class="line">
-      <button class="btn" id="btnPickPdf">Selecionar PDF</button>
-      <input id="pdfPath" type="text" readonly />
-    </div>
-
-    <div class="line">
-      <span>Fonte</span>
-      <select id="planSource">
-        <option>Unimed</option>
-        <option>UpHealth</option>
-        <option>OdontoPrev</option>
-      </select>
-
-      <button class="btn" id="btnImportPdf">Importar</button>
-
-      <button class="btn" id="btnRelatorioUnimed" disabled
-              title="Gera XLSX (Unimed) por Centro de Custo">
-        Gerar Relatório
+    <div class="menu-dd" id="reportMenuWrap">
+      <button class="menu-dd__btn" id="btnReportMenu" type="button" aria-haspopup="true" aria-expanded="false">
+        Gerar Relatorio <span class="menu-dd__chev">▾</span>
       </button>
+      <div class="menu-dd__panel" role="menu" aria-label="Menu de relatorios">
+        <button class="menu-dd__item" id="btnRelatorioUnimedMenu" type="button" role="menuitem" disabled>
+          Unimed por Centro de Custo
+        </button>
+      </div>
     </div>
 
-    <div class="line">
-      <progress id="planProg" max="100" value="0"></progress>
-      <span class="status" id="planStatus">Pronto</span>
+    <div class="page-title" id="pageTitle">Planos (PDF)</div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Importacao (Python)</div>
+
+      <div class="line">
+        <label for="planSource">Fonte</label>
+        <select id="planSource">
+          <option>Unimed</option>
+          <option>UpHealth</option>
+          <option>OdontoPrev</option>
+        </select>
+      </div>
+
+      <div class="line">
+        <button class="btn" id="btnPickPdf">Selecionar PDF</button>
+        <input id="pdfPath" type="text" readonly />
+        <button class="btn" id="btnImportPdf">Importar</button>
+      </div>
+
+      <div class="line">
+        <progress id="planProg" max="100" value="0"></progress>
+        <span class="status" id="planStatus">Pronto</span>
+      </div>
+
+      <div class="line line--stack">
+        <label for="log">Log</label>
+        <textarea id="log" readonly></textarea>
+      </div>
     </div>
 
-    <div style="margin-top:10px;">
-      <textarea id="log" readonly></textarea>
+    <div class="card" style="margin-top:16px;">
+      <div class="title">Previa do plano selecionado</div>
+      <div class="grid-wrapper">
+        <div id="planTable"></div>
+      </div>
     </div>
   </div>
 
-  <div class="card" style="margin-top:16px;">
-    <div class="title">Prévia do plano selecionado</div>
-    <div class="grid-wrapper">
-      <div id="planTable"></div>
-    </div>
-  </div>
-
-  <!-- MODAL Pendências -->
   <div id="modalPendencias" class="modal" style="display:none;">
     <div class="modal-content">
       <div class="modal-header">
-        <span>Pendências encontradas</span>
+        <span>Pendencias encontradas</span>
         <button id="btnClosePendencias" class="modal-close" title="Fechar">×</button>
       </div>
 
       <div class="modal-body">
         <p class="modal-text">
-          Existem beneficiários/dependentes sem vínculo com funcionário. Corrija antes de gerar o relatório.
+          Existem beneficiarios/dependentes sem vinculo com funcionario. Corrija antes de gerar o relatorio.
         </p>
 
         <div class="grid-wrapper">

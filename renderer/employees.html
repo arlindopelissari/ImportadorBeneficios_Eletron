@@ -7,51 +7,65 @@
 </head>
 <body>
   <div class="header">
-    <div class="h1">Funcionários (XLSX)</div>
     <div class="nav" id="nav"></div>
+
+    <div class="menu-dd" id="reportMenuWrap">
+      <button class="menu-dd__btn" id="btnReportMenu" type="button" aria-haspopup="true" aria-expanded="false">
+        Gerar Relatorio <span class="menu-dd__chev">▾</span>
+      </button>
+      <div class="menu-dd__panel" role="menu" aria-label="Menu de relatorios">
+        <button class="menu-dd__item" id="btnRelatorioUnimedMenu" type="button" role="menuitem">
+          Unimed por Centro de Custo
+        </button>
+      </div>
+    </div>
+
+    <div class="page-title" id="pageTitle">Funcionarios (XLSX)</div>
   </div>
 
-  <div class="card">
-    <div class="title">Importação</div>
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Importação</div>
 
-    <div class="line">
-      <button class="btn" id="btnPickXlsx">Selecionar XLSX</button>
-      <input id="xlsxPath" type="text" readonly />
+      <div class="line">
+        <button class="btn" id="btnPickXlsx">Selecionar XLSX</button>
+        <input id="xlsxPath" type="text" readonly />
+      </div>
+
+      <div class="line">
+        <button class="btn" id="btnImportXlsx">Importar</button>
+
+        <label class="muted" for="dismissMonths">Demitidos (meses)</label>
+        <select id="dismissMonths" title="0-6 meses">
+          <option value="0">0</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+        </select>
+
+        <span class="muted">Depois: apaga benefícios e executa o único DELETE em funcionario.</span>
+      </div>
+
+      <div class="line">
+        <progress id="empProg" max="100" value="0"></progress>
+        <span class="status" id="empStatus">Pronto</span>
+      </div>
     </div>
 
-    <div class="line">
-      <button class="btn" id="btnImportXlsx">Importar</button>
-
-      <label class="muted" for="dismissMonths">Demitidos (meses)</label>
-      <select id="dismissMonths" title="0-6 meses">
-        <option value="0">0</option>
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6">6</option>
-        <option value="7">7</option>
-        <option value="8">8</option>
-        <option value="9">9</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-      </select>
-
-      <span class="muted">Depois: apaga benefícios e executa o único DELETE em funcionario.</span>
-    </div>
-
-    <div class="line">
-      <progress id="empProg" max="100" value="0"></progress>
-      <span class="status" id="empStatus">Pronto</span>
-    </div>
-  </div>
-
-  <div class="card" style="margin-top:16px;">
-    <div class="title">Prévia (funcionario)</div>
-    <div class="grid-wrapper">
-      <div id="empTable"></div>
+    <div class="card" style="margin-top:16px;">
+      <div class="title">Prévia (funcionario)</div>
+      <div class="grid-wrapper">
+        <div id="empTable"></div>
+      </div>
     </div>
   </div>
 

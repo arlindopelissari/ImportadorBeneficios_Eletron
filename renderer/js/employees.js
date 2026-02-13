@@ -1,25 +1,25 @@
-function setBusy(isBusy) {
-  $('btnPickXlsx').disabled = isBusy;
-  $('btnImportXlsx').disabled = isBusy;
-  $('dismissMonths').disabled = isBusy;
+function setBusy(b) {
+  $('btnPickXlsx').disabled = b;
+  $('btnImportXlsx').disabled = b;
+  $('dismissMonths').disabled = b;
 }
 
 function setEmpProgress(v, status) {
   $('empProg').value = v;
-  if (status !== undefined) $('empStatus').textContent = status;
+  if (status) $('empStatus').textContent = status;
 }
 
-async function refreshEmployeesGrid() {
+async function refreshGrid() {
   const preview = await window.api.getEmployeesPreview(500);
   renderTable('empTable', preview);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  $('nav').innerHTML = navHtml('employees.html');
+  setupGlobalHeader({ activePage: 'employees.html', pageTitle: 'Funcionarios (XLSX)' });
 
   $('btnPickXlsx').addEventListener('click', async () => {
-    const p = await window.api.pickXlsx();
-    if (p) $('xlsxPath').value = p;
+    const xlsxPath = await window.api.pickXlsx();
+    if (xlsxPath) $('xlsxPath').value = xlsxPath;
   });
 
   $('btnImportXlsx').addEventListener('click', async () => {
@@ -29,30 +29,25 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!xlsxPath) return alert('Selecione um XLSX.');
 
     setBusy(true);
-    setEmpProgress(5, 'Validando e importando XLSX...');
+    setEmpProgress(10, 'Importando...');
+
     try {
       const res = await window.api.importXlsx({ xlsxPath, dismissMonths });
 
-      if (!res?.ok) {
-        setEmpProgress(0, 'Erro.');
-        return alert(res?.error || 'Falha ao importar XLSX.');
-      }
+      if (!res?.ok) throw new Error(res?.error || 'Falha na importacao');
 
-      setEmpProgress(80, 'Atualizando prévia...');
-      await refreshEmployeesGrid();
-
-      setEmpProgress(100, `OK. Importado: ${res.imported} | Removidos: ${res.removed}`);
-      alert(`Importação OK.
-
-Benefícios apagados: ${res.benefitsDeleted}
-Removidos (demitidos): ${res.removed}`);
+      await refreshGrid();
+      setEmpProgress(100, 'Importacao OK');
     } catch (e) {
-      setEmpProgress(0, 'Erro.');
+      setEmpProgress(0, 'Erro');
       alert(String(e?.message || e));
     } finally {
       setBusy(false);
     }
   });
 
-  refreshEmployeesGrid().catch(() => {});
+  refreshGrid().catch((e) => {
+    setEmpProgress(0, 'Erro');
+    alert(String(e?.message || e));
+  });
 });

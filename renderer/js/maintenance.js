@@ -18,18 +18,15 @@ function renderDependentes(preview) {
     return;
   }
 
-  // garante ordem / nomes esperados
   const cols = preview.columns;
   const rows = preview.rows;
 
-  // coluna extra "Ações"
   let html = '<table><thead><tr>';
   for (const c of cols) html += `<th>${escapeHtml(c)}</th>`;
   html += '<th>Ações</th>';
   html += '</tr></thead><tbody>';
 
   for (const r of rows) {
-    // pega índices
     const idIdx = cols.indexOf('id');
     const cpfRespIdx = cols.indexOf('cpfresponsavel');
 
@@ -41,7 +38,6 @@ function renderDependentes(preview) {
     for (let i = 0; i < cols.length; i++) {
       const col = cols[i];
 
-      // CPF Responsável vira input editável
       if (col === 'cpfresponsavel') {
         html += `<td>
           <input class="cpfresp" type="text" value="${escapeHtml(cpfresp)}" style="min-width:180px;" disabled />
@@ -72,13 +68,12 @@ async function refreshDeps() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  $('nav').innerHTML = navHtml('maintenance.html');
+  setupGlobalHeader({ activePage: 'maintenance.html', pageTitle: 'Depend. Unimed' });
 
   $('btnRefreshDep').addEventListener('click', () =>
     refreshDeps().catch(e => alert(String(e?.message || e)))
   );
 
-  // Event delegation (um listener só)
   $('depTable').addEventListener('click', async (ev) => {
     const btn = ev.target.closest('button');
     if (!btn) return;

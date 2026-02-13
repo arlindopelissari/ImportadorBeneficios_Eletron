@@ -8,6 +8,7 @@
   "type": "commonjs",
 
   "scripts": {
+    "dev": "electron .",
     "start": "electron .",
     "postinstall": "electron-builder install-app-deps",
     "rebuild": "electron-rebuild -f -w better-sqlite3",

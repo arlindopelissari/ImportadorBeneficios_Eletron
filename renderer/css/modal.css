@@ -1,9 +1,7 @@
-/* renderer/css/modal.css */
-
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, .55);
+  background: rgba(0, 0, 0, .65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -11,38 +9,44 @@
 }
 
 .modal-content {
-  background: #fff;
+  background: #1b2332;
   width: 980px;
   max-width: calc(100vw - 40px);
   max-height: 82vh;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
+  border: 1px solid rgba(255,255,255,.05);
 }
 
 .modal-header,
 .modal-footer {
   padding: 10px 14px;
-  background: #f3f3f3;
+  background: #111826;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .modal-body {
-  padding: 12px 14px;
+  padding: 14px;
   overflow: auto;
 }
 
 .modal-text {
-  margin: 0 0 10px 0;
+  margin: 0 0 12px 0;
+  color:#cfd6e2;
 }
 
 .modal-close {
   border: none;
   background: transparent;
-  font-size: 22px;
-  line-height: 1;
+  font-size: 20px;
+  color:#cfd6e2;
   cursor: pointer;
+}
+
+.modal-close:hover{
+  color:#fff;
 }

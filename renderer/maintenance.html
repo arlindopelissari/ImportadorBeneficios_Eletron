@@ -6,24 +6,38 @@
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
-   <div class="header">
-    <div class="h1">Manutenção</div>
+  <div class="header">
     <div class="nav" id="nav"></div>
-  </div>
 
-  <div class="card">
-    <div class="title">Dependentes (Unimed)</div>
-
-    <div class="line">
-      <button class="btn" id="btnRefreshDep">Atualizar</button>
-      <span class="muted">
-        Editar CPF do responsável ou deletar direto na grid.
-      </span>
-      <span class="status" id="mStatus">Pronto</span>
+    <div class="menu-dd" id="reportMenuWrap">
+      <button class="menu-dd__btn" id="btnReportMenu" type="button" aria-haspopup="true" aria-expanded="false">
+        Gerar Relatorio <span class="menu-dd__chev">▾</span>
+      </button>
+      <div class="menu-dd__panel" role="menu" aria-label="Menu de relatorios">
+        <button class="menu-dd__item" id="btnRelatorioUnimedMenu" type="button" role="menuitem">
+          Unimed por Centro de Custo
+        </button>
+      </div>
     </div>
 
-    <div class="grid-wrapper">
-      <div id="depTable"></div>
+    <div class="page-title" id="pageTitle">Depend. Unimed</div>
+  </div>
+
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Dependentes (Unimed)</div>
+
+      <div class="line">
+        <button class="btn" id="btnRefreshDep">Atualizar</button>
+        <span class="muted">
+          Editar CPF do responsável ou deletar direto na grid.
+        </span>
+        <span class="status" id="mStatus">Pronto</span>
+      </div>
+
+      <div class="grid-wrapper">
+        <div id="depTable"></div>
+      </div>
     </div>
   </div>
 

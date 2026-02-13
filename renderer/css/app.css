@@ -1,24 +1,373 @@
-:root { --gap: 16px; --radius: 16px; }
-* { box-sizing: border-box; }
-body { font-family: Arial, sans-serif; margin: 16px; color:#111; }
-.header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 12px; }
-.h1 { font-size: 22px; font-weight: 800; }
-.nav { display:flex; gap:10px; flex-wrap:wrap; }
-a.btn, button.btn { padding: 8px 12px; border:1px solid #ddd; border-radius: 12px; background:#fff; cursor:pointer; text-decoration:none; color:#111; }
-a.btn:hover, button.btn:hover { background:#fafafa; }
-.card { border: 1px solid #ddd; border-radius: var(--radius); padding: 14px; }
-.title { font-size: 18px; font-weight: 800; margin-bottom: 10px; }
-.row { display:flex; gap: var(--gap); align-items: stretch; flex-wrap: wrap; }
-.col { flex: 1 1 520px; min-width: 520px; }
-.line { display:flex; gap:10px; align-items:center; margin: 10px 0; flex-wrap: wrap; }
-input[type=text], input[type=number] { flex:1; padding:8px; min-width:240px; border:1px solid #ddd; border-radius: 10px; }
-select { padding:8px; border:1px solid #ddd; border-radius: 10px; }
-progress { width: 240px; height: 16px; }
-.muted { color:#666; font-size:12px; }
-.status { margin-left:10px; }
-.grid-wrapper { width:100%; height: 420px; overflow:auto; border:1px solid #eee; border-radius: 12px; }
-table { border-collapse: collapse; font-size: 12px; min-width: 100%; white-space: nowrap; }
-th, td { border: 1px solid #eee; padding: 6px; text-align:left; }
-th { background:#fafafa; position: sticky; top:0; z-index:1; }
-textarea { width:100%; height:140px; border:1px solid #ddd; border-radius: 12px; padding:10px; }
-.badge { font-size: 12px; padding: 4px 8px; border-radius: 999px; border:1px solid #ddd; background:#fafafa; }
+/* =========================
+   MENU FIXO LIMPO
+========================= */
+
+.topbar{
+  position: sticky;
+  top:0;
+  z-index: 100;
+  display:flex;
+  align-items:center;
+  gap:18px;
+  padding: 10px 18px;
+  background: #111826;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+
+.brand__title{
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+
+.brand__subtitle{
+  font-size: 11px;
+  opacity: .55;
+  margin-top: 2px;
+}
+
+.menu{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.menu__link,
+.dd__btn{
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  color: #d8dde6;
+  cursor:pointer;
+  transition: all .15s ease;
+}
+
+.menu__link:hover,
+.dd__btn:hover{
+  background: rgba(255,255,255,.06);
+  color: #fff;
+}
+
+.dd{
+  position: relative;
+}
+
+.chev{
+  font-size: 10px;
+  opacity: .5;
+  margin-left: 4px;
+}
+
+/* Dropdown */
+.dd__panel{
+  position:absolute;
+  top: 34px;
+  left: 0;
+  min-width: 210px;
+  background: #1b2332;
+  border-radius: 8px;
+  padding: 6px;
+  display:none;
+  box-shadow: 0 8px 25px rgba(0,0,0,.4);
+  border: 1px solid rgba(255,255,255,.05);
+}
+
+.dd.is-open .dd__panel{
+  display:block;
+}
+
+.dd__item{
+  display:block;
+  width:100%;
+  text-align:left;
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  background: transparent;
+  border:none;
+  color:#cfd6e2;
+  cursor:pointer;
+}
+
+.dd__item:hover{
+  background: rgba(255,255,255,.06);
+  color:#fff;
+}
+
+.topbar__right{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* remove bordas antigas que estão quebrando layout */
+button,
+a{
+  outline:none;
+}
+
+.shell { margin:0; }
+.shell__main { height: calc(100vh - 52px); }
+.shell__frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display:block;
+  background: transparent;
+}
+/* Shared top menu */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  background: #000;
+  color: #fff;
+}
+
+.h1 {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.menu-link {
+  display: inline-block;
+  padding: 7px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  border: 1px solid #2d2d2d;
+  background: #000;
+  color: #fff;
+}
+
+.menu-link:hover {
+  background: #1a1a1a;
+}
+
+.menu-link.is-active {
+  background: #fff;
+  color: #000;
+}
+
+.shell__main--full {
+  height: 100vh;
+}
+
+/* Layout base pages */
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: #f4f5f7;
+  color: #171717;
+}
+
+.page-wrap {
+  padding: 16px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.line--stack {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.btn {
+  border: 1px solid #c4c4c4;
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+input[type="text"],
+select,
+textarea {
+  border: 1px solid #c6c6c6;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+#pdfPath {
+  min-width: 360px;
+  flex: 1;
+}
+
+#log {
+  min-height: 90px;
+  width: 100%;
+}
+
+progress {
+  width: 240px;
+}
+
+.grid-wrapper {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th,
+td {
+  border: 1px solid #e4e4e4;
+  padding: 6px 8px;
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  background: #f5f5f5;
+}
+
+/* Dropdown de relatorio no topo */
+.menu-dd {
+  margin-left: auto;
+  position: relative;
+}
+
+.menu-dd__btn {
+  border: 1px solid #2d2d2d;
+  border-radius: 6px;
+  background: #000;
+  color: #fff;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.menu-dd__btn:hover {
+  background: #1a1a1a;
+}
+
+.menu-dd__chev {
+  font-size: 10px;
+  opacity: .8;
+}
+
+.menu-dd__panel {
+  position: absolute;
+  right: 0;
+  top: 38px;
+  min-width: 260px;
+  border: 1px solid #2d2d2d;
+  border-radius: 8px;
+  background: #000;
+  padding: 6px;
+  display: none;
+}
+
+.menu-dd.is-open .menu-dd__panel {
+  display: block;
+}
+
+.menu-dd__item {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.menu-dd__item:hover {
+  background: #1f1f1f;
+}
+
+.menu-dd__item:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+#xlsxPath {
+  min-width: 320px;
+  flex: 1;
+}
+
+.muted {
+  color: #575757;
+}
+
+.status {
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .menu-dd {
+    margin-left: 0;
+  }
+
+  .line {
+    flex-wrap: wrap;
+  }
+
+  #pdfPath,
+  #xlsxPath {
+    min-width: 220px;
+    width: 100%;
+  }
+}
+
+/* Header global fixo */
+.page-title {
+  margin-left: auto;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.menu-dd {
+  margin-left: 0;
+}
+
+.menu-link.is-active {
+  background: #000;
+  color: #fff;
+  border-color: #2d2d2d;
+}

@@ -2,49 +2,136 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8" />
-  <title>Importador - Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Importador</title>
   <link rel="stylesheet" href="./css/app.css" />
 </head>
+
 <body>
-  <div class="header">
-    <div class="h1">Importador (XLSX + PDF)</div>
-    <div class="nav" id="nav"></div>
-  </div>
-
-  <div class="row">
-    <div class="card col">
-      <div class="title">Atalhos</div>
-      <div class="line">
-        <a class="btn" href="./employees.html">Ir para Funcionários</a>
-        <a class="btn" href="./benefits.html">Ir para Planos</a>
-        <a class="btn" href="./maintenance.html">Ir para Manutenção</a>
-      </div>
-      <div class="muted">Separado por telas = menos bug, mais previsível.</div>
+  <header class="topbar" role="banner">
+    <div class="brand">
+      <div class="brand__title">Importador</div>
+      <div class="brand__subtitle">XLSX + PDF • Benefícios</div>
     </div>
 
-    <div class="card col">
-      <div class="title">Status rápido</div>
-      <div class="line">
-        <button class="btn" id="btnRefresh">Atualizar</button>
-        <span class="muted" id="status">Pronto</span>
+    <nav class="menu" aria-label="Menu principal">
+      <div class="dd">
+        <button class="dd__btn" type="button" aria-haspopup="true" aria-expanded="false">
+          Importar <span class="chev">▾</span>
+        </button>
+        <div class="dd__panel" role="menu">
+          <a class="dd__item" role="menuitem" href="./employees.html">Funcionários (XLSX)</a>
+          <a class="dd__item" role="menuitem" href="./benefits.html">Planos (PDF)</a>
+        </div>
       </div>
 
-      <div class="row">
-        <div class="card" style="flex:1;">
-          <div class="title">Funcionários</div>
-          <div class="muted">Prévia (10 linhas)</div>
-          <div class="grid-wrapper" style="height:220px;"><div id="empTable"></div></div>
-        </div>
-        <div class="card" style="flex:1;">
-          <div class="title">Dependentes</div>
-          <div class="muted">Prévia (10 linhas)</div>
-          <div class="grid-wrapper" style="height:220px;"><div id="depTable"></div></div>
+      <div class="dd">
+        <button class="dd__btn" type="button" aria-haspopup="true" aria-expanded="false">
+          Gerar relatório <span class="chev">▾</span>
+        </button>
+        <div class="dd__panel" role="menu">
+          <button class="dd__item" role="menuitem" id="btnReportUnimed" type="button">
+            Unimed por Centro de Custo
+          </button>
         </div>
       </div>
+
+      <a class="menu__link" href="./maintenance.html">Manutenção</a>
+    </nav>
+
+    <div class="topbar__right">
+      <span class="status" id="statusWrap" aria-live="polite">
+        <span class="status__dot" aria-hidden="true"></span>
+        <span class="status__text" id="status">Pronto</span>
+      </span>
+
+      <button class="btn btn--primary" id="btnRefresh" type="button">
+        <span class="btn__label">Atualizar</span>
+        <span class="spinner" aria-hidden="true"></span>
+      </button>
     </div>
-  </div>
+  </header>
+
+  <main class="page" role="main">
+    <section class="grid">
+      <article class="panel">
+        <header class="panel__head">
+          <div>
+            <div class="panel__title">Funcionários</div>
+            <div class="panel__sub">Prévia (10 linhas)</div>
+          </div>
+          <div class="panel__meta" id="empMeta">—</div>
+        </header>
+
+        <div class="panel__body">
+          <div class="table-shell" role="region" aria-label="Tabela de funcionários (prévia)">
+            <div id="empTable" class="table"></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel">
+        <header class="panel__head">
+          <div>
+            <div class="panel__title">Dependentes</div>
+            <div class="panel__sub">Prévia (10 linhas)</div>
+          </div>
+          <div class="panel__meta" id="depMeta">—</div>
+        </header>
+
+        <div class="panel__body">
+          <div class="table-shell" role="region" aria-label="Tabela de dependentes (prévia)">
+            <div id="depTable" class="table"></div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
 
   <script src="./js/common.js"></script>
   <script src="./js/dashboard.js"></script>
+
+  <script>
+    // dropdown UX simples e clean (fecha ao clicar fora)
+    document.querySelectorAll('.dd').forEach(dd => {
+      const btn = dd.querySelector('.dd__btn');
+      const panel = dd.querySelector('.dd__panel');
+
+      const closeAll = () => {
+        document.querySelectorAll('.dd').forEach(x => {
+          x.classList.remove('is-open');
+          const b = x.querySelector('.dd__btn');
+          b && b.setAttribute('aria-expanded', 'false');
+        });
+      };
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dd.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) {
+          document.querySelectorAll('.dd').forEach(x => x !== dd && x.classList.remove('is-open'));
+        }
+      });
+
+      panel.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', closeAll);
+      document.addEventListener('keydown', (e) => e.key === 'Escape' && closeAll());
+    });
+
+    // botão do menu "Gerar relatório"
+    const btnReport = document.getElementById('btnReportUnimed');
+    btnReport?.addEventListener('click', async () => {
+      try {
+        const r = await window.api.generateUnimedReport?.();
+        // se teu common.js já tem toast, usa lá. Aqui só status:
+        const status = document.getElementById('status');
+        if (r?.ok) status.textContent = 'Relatório gerado';
+        else status.textContent = r?.canceled ? 'Cancelado' : (r?.error || 'Falha ao gerar');
+      } catch (e) {
+        document.getElementById('status').textContent = 'Erro ao gerar relatório';
+      }
+    });
+  </script>
 </body>
 </html>
