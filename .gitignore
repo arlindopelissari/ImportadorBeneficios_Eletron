@@ -1,1 +1,19 @@
 node_modules/
+dist/
+dist_installer/
+win-unpacked/
+out/
+*.log
+.DS_Store
+
+# electron-builder / caches
+node_modules/.builder/
+
+# sqlite/local
+sys.db
+*.sqlite
+*.sqlite3
+
+# env
+.env
+.env.*
