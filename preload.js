@@ -19,8 +19,10 @@ contextBridge.exposeInMainWorld('api', {
   saveValeApontamento: (payload) => ipcRenderer.invoke('save-vale-apontamento', payload),
   deleteValeApontamento: (cpf) => ipcRenderer.invoke('delete-vale-apontamento', cpf),
   getValeFaltas: () => ipcRenderer.invoke('get-vale-faltas'),
+  clearValeFaltas: () => ipcRenderer.invoke('clear-vale-faltas'),
   saveValeFalta: (payload) => ipcRenderer.invoke('save-vale-falta', payload),
   deleteValeFalta: (cpf) => ipcRenderer.invoke('delete-vale-falta', cpf),
+  openFaltasWindow: () => ipcRenderer.invoke('open-faltas-window'),
 
   importXlsx: (payload) => ipcRenderer.invoke('import-xlsx', payload),
   importPdf: (payload) => ipcRenderer.invoke('import-pdf', payload),

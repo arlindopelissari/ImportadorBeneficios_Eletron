@@ -52,34 +52,6 @@
 
   </div>
 
-  <div id="modalFaltas" class="gmodal" style="display:none;">
-    <div class="gmodal__content">
-      <div class="gmodal__header">
-        <span class="gmodal__title">Manutenção de Faltas</span>
-        <button id="btnFecharFaltasTop" class="gmodal__close" type="button" title="Fechar">×</button>
-      </div>
-      <div class="gmodal__body">
-        <div class="line">
-          <label for="funcionarioFaltaSelect">Funcionário</label>
-          <select id="funcionarioFaltaSelect"></select>
-          <label for="faltasModalInput">Faltas</label>
-          <input id="faltasModalInput" type="number" min="0" step="1" />
-          <button class="btn" id="btnSalvarFalta">Salvar</button>
-          <button class="btn" id="btnLimparFalta">Limpar</button>
-        </div>
-        <div class="line">
-          <span class="status" id="faltasStatus">Pronto</span>
-        </div>
-        <div class="grid-wrapper">
-          <div id="faltasTable"></div>
-        </div>
-      </div>
-      <div class="gmodal__footer">
-        <button class="btn" id="btnFecharFaltasBottom" type="button">Fechar</button>
-      </div>
-    </div>
-  </div>
-
   <script src="./js/common.js"></script>
   <script src="./js/vale.js"></script>
 </body>

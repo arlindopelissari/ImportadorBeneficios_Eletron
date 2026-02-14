@@ -269,6 +269,24 @@ body {
   flex-direction: column;
 }
 
+.line--faltas-controls {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.line--faltas-controls label {
+  white-space: nowrap;
+}
+
+.line--faltas-controls #funcionarioFaltaSelect {
+  flex: 1 1 420px;
+  min-width: 260px;
+}
+
+.line--faltas-controls #faltasInput {
+  width: 90px;
+}
+
 .btn {
   border: 1px solid var(--c12);
   border-radius: 6px;

@@ -1,6 +1,5 @@
 function setValeStatus(s) { $('valeStatus').textContent = s; }
 function setVinculoStatus(s) { $('vinculoStatus').textContent = s; }
-function setFaltasStatus(s) { $('faltasStatus').textContent = s; }
 
 function parseMoney(v) {
   const raw = String(v || '').trim().replace(/\./g, '').replace(',', '.');
@@ -72,34 +71,6 @@ function renderVinculoTable(rows) {
   });
 }
 
-function renderFaltasTable(rows) {
-  const host = $('faltasTable');
-  if (!Array.isArray(rows) || rows.length === 0) {
-    host.innerHTML = '<div class="muted" style="padding:10px;">Sem dados.</div>';
-    return;
-  }
-
-  const preview = {
-    columns: ['CPF', 'Cadastro', 'Nome', 'faltas', 'updated_at'],
-    rows: rows.map((r) => [r.CPF, r.Cadastro, r.Nome, r.faltas, r.updated_at])
-  };
-  renderTable('faltasTable', preview);
-
-  const table = host.querySelector('table');
-  const headRow = table.querySelector('thead tr');
-  headRow.insertAdjacentHTML('beforeend', '<th>Ações</th>');
-  const bodyRows = table.querySelectorAll('tbody tr');
-  bodyRows.forEach((tr, i) => {
-    const cpf = rows[i].CPF;
-    tr.insertAdjacentHTML(
-      'beforeend',
-      `<td>
-        <button class="btn act-edit-falta" data-cpf="${escapeHtml(cpf)}">Editar</button>
-        <button class="btn act-del-falta" data-cpf="${escapeHtml(cpf)}">Excluir</button>
-      </td>`
-    );
-  });
-}
 
 async function loadVales() {
   const res = await window.api.getValesAlimentacao();
@@ -132,30 +103,10 @@ async function loadVinculos() {
   renderVinculoTable(res.rows || []);
 }
 
-async function loadFuncionariosFalta() {
-  const res = await window.api.getFuncionariosApontamento();
-  if (!res?.ok) throw new Error(res?.error || 'Falha ao carregar funcionários.');
-
-  const sel = $('funcionarioFaltaSelect');
-  sel.innerHTML = '<option value="">Selecione...</option>';
-  for (const r of res.rows || []) {
-    const text = `${r.Cadastro} - ${r.Nome} (${r.CPF})`;
-    sel.insertAdjacentHTML('beforeend', `<option value="${escapeHtml(r.CPF)}">${escapeHtml(text)}</option>`);
-  }
-}
-
-async function loadFaltas() {
-  const res = await window.api.getValeFaltas();
-  if (!res?.ok) throw new Error(res?.error || 'Falha ao carregar faltas.');
-  renderFaltasTable(res.rows || []);
-}
-
 async function refreshAll() {
   await loadVales();
   await loadCentrosCusto();
   await loadVinculos();
-  await loadFuncionariosFalta();
-  await loadFaltas();
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -311,65 +262,11 @@ window.addEventListener('DOMContentLoaded', () => {
     await loadVinculos();
   });
 
-  const modal = $('modalFaltas');
-  const closeFaltas = () => { modal.style.display = 'none'; };
-
   $('btnAbrirFaltas').addEventListener('click', async () => {
-    await loadFaltas();
-    modal.style.display = 'flex';
-  });
-  $('btnFecharFaltasTop').addEventListener('click', closeFaltas);
-  $('btnFecharFaltasBottom').addEventListener('click', closeFaltas);
-  modal.addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'modalFaltas') closeFaltas();
-  });
-
-  $('btnSalvarFalta').addEventListener('click', async () => {
-    const cpf = $('funcionarioFaltaSelect').value;
-    const faltas = Number($('faltasModalInput').value || 0);
-    if (!cpf) return alert('Selecione o funcionário.');
-    if (!Number.isFinite(faltas) || faltas < 0) return alert('Faltas inválidas.');
-
-    setFaltasStatus('Salvando...');
-    const res = await window.api.saveValeFalta({ CPF: cpf, faltas });
+    const res = await window.api.openFaltasWindow();
     if (!res?.ok) {
-      setFaltasStatus('Erro');
-      return alert(res?.error || 'Falha ao salvar faltas.');
+      alert(res?.error || 'Falha ao abrir a janela de faltas.');
     }
-    setFaltasStatus('OK');
-    await loadFaltas();
-  });
-
-  $('btnLimparFalta').addEventListener('click', () => {
-    $('funcionarioFaltaSelect').value = '';
-    $('faltasModalInput').value = '';
-  });
-
-  $('faltasTable').addEventListener('click', async (e) => {
-    const btnEdit = e.target.closest('.act-edit-falta');
-    if (btnEdit) {
-      const tr = btnEdit.closest('tr');
-      if (!tr) return;
-      const tds = tr.querySelectorAll('td');
-      $('funcionarioFaltaSelect').value = String(tds[0]?.textContent || '').trim();
-      $('faltasModalInput').value = String(tds[3]?.textContent || '').trim();
-      setFaltasStatus('Edição carregada');
-      return;
-    }
-
-    const btnDel = e.target.closest('.act-del-falta');
-    if (!btnDel) return;
-    const cpf = btnDel.getAttribute('data-cpf');
-    if (!confirm(`Excluir faltas do CPF ${cpf}?`)) return;
-
-    setFaltasStatus('Excluindo...');
-    const res = await window.api.deleteValeFalta(cpf);
-    if (!res?.ok) {
-      setFaltasStatus('Erro');
-      return alert(res?.error || 'Falha ao excluir faltas.');
-    }
-    setFaltasStatus('OK');
-    await loadFaltas();
   });
 
   refreshAll().catch((e) => alert(String(e?.message || e)));

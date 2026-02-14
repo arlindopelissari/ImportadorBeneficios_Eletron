@@ -370,22 +370,32 @@ function setupGlobalHeader({ activePage, pageTitle, onGenerateReport, onDependen
   const wrap = $('reportMenuWrap');
   const btn = $('btnReportMenu');
   const item = $('btnRelatorioUnimedMenu');
+  const depWrap = $('depMenuWrap');
+  const depBtn = $('btnDepMenu');
+
+  const closeReportMenu = () => {
+    if (!wrap || !btn) return;
+    wrap.classList.remove('is-open');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+
+  const closeDependentesMenu = () => {
+    if (!depWrap || !depBtn) return;
+    depWrap.classList.remove('is-open');
+    depBtn.setAttribute('aria-expanded', 'false');
+  };
 
   if (wrap && btn && !wrap.dataset.bound) {
-    const close = () => {
-      wrap.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    };
-
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      closeDependentesMenu();
       const open = wrap.classList.toggle('is-open');
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
-    document.addEventListener('click', close);
+    document.addEventListener('click', closeReportMenu);
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') closeReportMenu();
     });
 
     wrap.dataset.bound = '1';
@@ -399,26 +409,20 @@ function setupGlobalHeader({ activePage, pageTitle, onGenerateReport, onDependen
     };
   }
 
-  const depWrap = $('depMenuWrap');
-  const depBtn = $('btnDepMenu');
   const btnExport = $('btnExportDepUnimed');
   const btnImport = $('btnImportDepUnimed');
 
   if (depWrap && depBtn && !depWrap.dataset.bound) {
-    const close = () => {
-      depWrap.classList.remove('is-open');
-      depBtn.setAttribute('aria-expanded', 'false');
-    };
-
     depBtn.addEventListener('click', (e) => {
       e.stopPropagation();
+      closeReportMenu();
       const open = depWrap.classList.toggle('is-open');
       depBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
-    document.addEventListener('click', close);
+    document.addEventListener('click', closeDependentesMenu);
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') closeDependentesMenu();
     });
 
     depWrap.dataset.bound = '1';

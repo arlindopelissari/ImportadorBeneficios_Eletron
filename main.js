@@ -42,6 +42,7 @@ const { generateUnimedReport } = require('./services/unimedReport');
 const { generateValeReport } = require('./services/valeReport');
 
 let mainWindow;
+let faltasWindow;
 let lastXlsxDir = null;
 let lastPdfDir = null;
 let lastDependentesDir = null;
@@ -91,6 +92,31 @@ function createWindow() {
 
   //mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'employees.html'));
+}
+
+function openFaltasWindow() {
+  if (faltasWindow && !faltasWindow.isDestroyed()) {
+    if (faltasWindow.isMinimized()) faltasWindow.restore();
+    faltasWindow.focus();
+    return;
+  }
+
+  faltasWindow = new BrowserWindow({
+    width: 1100,
+    height: 760,
+    parent: mainWindow || undefined,
+    modal: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  faltasWindow.loadFile(path.join(__dirname, 'renderer', 'faltas.html'));
+  faltasWindow.on('closed', () => {
+    faltasWindow = null;
+  });
 }
 
 // ============================
@@ -294,7 +320,7 @@ ipcMain.handle('generate-unimed-report', async () => {
   try {
     const defaultPath = path.join(
       app.getPath('documents'),
-      `Relatorio_Unimed_CCusto_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
+      `Relatório_Planos_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
     );
 
     const res = await dialog.showSaveDialog(mainWindow, {
@@ -521,6 +547,19 @@ ipcMain.handle('get-vale-faltas', async () => {
   }
 });
 
+ipcMain.handle('clear-vale-faltas', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = clearValeFaltas(db);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
 ipcMain.handle('save-vale-falta', async (_evt, payload) => {
   const db = openDb();
   try {
@@ -531,6 +570,15 @@ ipcMain.handle('save-vale-falta', async (_evt, payload) => {
     return { ok: false, error: String(e?.message || e) };
   } finally {
     db.close();
+  }
+});
+
+ipcMain.handle('open-faltas-window', async () => {
+  try {
+    openFaltasWindow();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
   }
 });
 
