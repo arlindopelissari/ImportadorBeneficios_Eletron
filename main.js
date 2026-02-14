@@ -2,28 +2,49 @@
 
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const XLSX = require('xlsx');
 
 const {
   openDb,
   ensureSchema,
   clearBenefits,
+  clearValeFaltas,
+  deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
+  getDependentesUnimedForExport,
+  getValesAlimentacao,
+  saveValeAlimentacao,
+  deleteValeAlimentacao,
+  getCentrosCusto,
+  getValeCcustoVinculos,
+  saveValeCcustoVinculo,
+  deleteValeCcustoVinculo,
+  getFuncionariosParaApontamento,
+  getValeApontamentos,
+  saveValeApontamento,
+  deleteValeApontamento,
+  getValeFaltas,
+  saveValeFalta,
+  deleteValeFalta,
   deleteDemitidos,
   repairPlanounimedIfNeeded,
   populateUnimedDependentesFromPlano,
   deleteDependenteById,
-  updateCpfResponsavelById
+  updateCpfResponsavelById,
+  importDependentesUnimedRows
 } = require('./services/db');
 
 const { importEmployeesXlsx } = require('./services/xlsxImporter');
 const { runPythonImport } = require('./services/pythonRunner');
 const { generateUnimedReport } = require('./services/unimedReport');
+const { generateValeReport } = require('./services/valeReport');
 
 let mainWindow;
 let lastXlsxDir = null;
 let lastPdfDir = null;
+let lastDependentesDir = null;
 
 // ============================
 // Paths (DEV vs PACKAGED)
@@ -79,6 +100,7 @@ app.whenReady().then(() => {
   debugPaths();
   lastXlsxDir = app.getPath('documents');
   lastPdfDir = app.getPath('documents');
+  lastDependentesDir = app.getPath('documents');
 
   const db = openDb();
   ensureSchema(db);
@@ -125,7 +147,7 @@ ipcMain.handle('pick-pdf', async () => {
 // ============================
 // Preview
 // ============================
-ipcMain.handle('get-employees-preview', async (_evt, maxRows = 500) => {
+ipcMain.handle('get-employees-preview', async (_evt, maxRows = 5000) => {
   const db = openDb();
   try {
     ensureSchema(db);
@@ -135,7 +157,7 @@ ipcMain.handle('get-employees-preview', async (_evt, maxRows = 500) => {
   }
 });
 
-ipcMain.handle('get-benefits-preview', async (_evt, source, maxRows = 500) => {
+ipcMain.handle('get-benefits-preview', async (_evt, source, maxRows = 5000) => {
   const db = openDb();
   try {
     ensureSchema(db);
@@ -145,7 +167,7 @@ ipcMain.handle('get-benefits-preview', async (_evt, source, maxRows = 500) => {
   }
 });
 
-ipcMain.handle('get-dependentes-preview', async (_evt, maxRows = 500) => {
+ipcMain.handle('get-dependentes-preview', async (_evt, maxRows = 5000) => {
   const db = openDb();
   try {
     ensureSchema(db);
@@ -199,13 +221,15 @@ ipcMain.handle('import-xlsx', async (_evt, payload) => {
 
     const result = importEmployeesXlsx(db, xlsxPath);
     const benefitsDeleted = clearBenefits(db);
-    const removed = deleteDemitidos(db, Number(dismissMonths || 0));
+    const faltasDeleted = clearValeFaltas(db);
+    const removed = deleteDemitidos(db, dismissMonths);
 
     return {
       ok: true,
       imported: result.importedRows,
       removed,
-      benefitsDeleted
+      benefitsDeleted,
+      faltasDeleted
     };
   } catch (e) {
     console.error('[import-xlsx] ERRO:', e);
@@ -304,6 +328,225 @@ ipcMain.handle('generate-unimed-report', async () => {
   }
 });
 
+ipcMain.handle('generate-vale-report', async (_evt, payload) => {
+  let db;
+  try {
+    const dataBase = String(payload?.dataBase || '').trim();
+    if (!dataBase) return { ok: false, error: 'Informe a Data Base.' };
+
+    const defaultPath = path.join(
+      app.getPath('documents'),
+      `Relatorio_Vale_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
+    );
+
+    const res = await dialog.showSaveDialog(mainWindow, {
+      title: 'Salvar relatório de Vale Alimentação',
+      defaultPath,
+      filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    });
+
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+
+    db = openDb();
+    ensureSchema(db);
+    return await generateValeReport(db, res.filePath, dataBase);
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try { if (db) db.close(); } catch {}
+  }
+});
+
+ipcMain.handle('delete-benefits-by-source', async (_evt, source) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = deleteBenefitsBySource(db, source);
+    return { ok: true, changes };
+  } catch (e) {
+    console.error('[delete-benefits-by-source] ERRO:', e);
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-vales-alimentacao', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getValesAlimentacao(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('save-vale-alimentacao', async (_evt, payload) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = saveValeAlimentacao(db, payload);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('delete-vale-alimentacao', async (_evt, idVale) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = deleteValeAlimentacao(db, idVale);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-centros-custo', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getCentrosCusto(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-vale-ccusto-vinculos', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getValeCcustoVinculos(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('save-vale-ccusto-vinculo', async (_evt, payload) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = saveValeCcustoVinculo(db, payload);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('delete-vale-ccusto-vinculo', async (_evt, ccusto) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = deleteValeCcustoVinculo(db, ccusto);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-funcionarios-apontamento', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getFuncionariosParaApontamento(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-vale-apontamentos', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getValeApontamentos(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('save-vale-apontamento', async (_evt, payload) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = saveValeApontamento(db, payload);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('delete-vale-apontamento', async (_evt, cpf) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = deleteValeApontamento(db, cpf);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-vale-faltas', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getValeFaltas(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('save-vale-falta', async (_evt, payload) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = saveValeFalta(db, payload);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('delete-vale-falta', async (_evt, cpf) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = deleteValeFalta(db, cpf);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
 ipcMain.handle('post-report-actions', async (_evt, filePath) => {
   const target = String(filePath || '').trim();
   if (!target) return { ok: false, error: 'Arquivo do relatório inválido.' };
@@ -333,6 +576,123 @@ ipcMain.handle('post-report-actions', async (_evt, filePath) => {
     return { ok: true, action: 'close' };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };
+  }
+});
+
+ipcMain.handle('open-report-file', async (_evt, filePath) => {
+  const target = String(filePath || '').trim();
+  if (!target) return { ok: false, error: 'Arquivo do relatório inválido.' };
+
+  try {
+    const err = await shell.openPath(target);
+    if (err) return { ok: false, error: err };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+});
+
+ipcMain.handle('open-report-folder', async (_evt, filePath) => {
+  const target = String(filePath || '').trim();
+  if (!target) return { ok: false, error: 'Arquivo do relatório inválido.' };
+
+  try {
+    shell.showItemInFolder(target);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+});
+
+function normalizeImportHeader(name) {
+  return String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+ipcMain.handle('export-dependentes-unimed', async () => {
+  let db;
+  try {
+    db = openDb();
+    ensureSchema(db);
+    const rows = getDependentesUnimedForExport(db);
+
+    if (!rows.length) {
+      return { ok: false, error: 'Não existem dependentes com cpfresponsável preenchido para exportar.' };
+    }
+
+    const defaultPath = path.join(
+      lastDependentesDir || app.getPath('documents'),
+      `Dependentes_Unimed_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
+    );
+
+    const res = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar dependentes Unimed',
+      defaultPath,
+      filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    });
+
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'DependentesUnimed');
+    XLSX.writeFile(wb, res.filePath);
+
+    lastDependentesDir = path.dirname(res.filePath);
+    return { ok: true, file: res.filePath, exported: rows.length };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try { if (db) db.close(); } catch {}
+  }
+});
+
+ipcMain.handle('import-dependentes-unimed', async () => {
+  let db;
+  try {
+    const pick = await dialog.showOpenDialog(mainWindow, {
+      title: 'Importar dependentes Unimed',
+      defaultPath: lastDependentesDir || app.getPath('documents'),
+      properties: ['openFile'],
+      filters: [{ name: 'Excel', extensions: ['xlsx', 'xls'] }]
+    });
+
+    if (pick.canceled || !pick.filePaths?.length) return { ok: false, canceled: true };
+
+    const filePath = pick.filePaths[0];
+    lastDependentesDir = path.dirname(filePath);
+
+    const wb = XLSX.readFile(filePath, { cellDates: false });
+    const sheetName = wb.SheetNames?.[0];
+    if (!sheetName) return { ok: false, error: 'Arquivo sem planilha.' };
+
+    const ws = wb.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+
+    const normalizedRows = rawRows.map((r) => {
+      const mapped = {};
+      for (const [k, v] of Object.entries(r || {})) {
+        mapped[normalizeImportHeader(k)] = String(v ?? '').trim();
+      }
+      return {
+        beneficiario: mapped.beneficiario || mapped.nome || '',
+        cpf: mapped.cpf || '',
+        cpfresponsavel: mapped.cpfresponsavel || ''
+      };
+    });
+
+    db = openDb();
+    ensureSchema(db);
+
+    const stats = importDependentesUnimedRows(db, normalizedRows);
+    return { ok: true, ...stats, file: filePath };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try { if (db) db.close(); } catch {}
   }
 });
 

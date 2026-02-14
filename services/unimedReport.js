@@ -154,6 +154,37 @@ const tableRows = rowsDemitidos.map(r => {
   ws.getColumn(7).width = 16; // total_valor
 }
 
+function addDetalhamentoSheet(workbook, rowsDetalhe, sheetName) {
+  const ws = workbook.addWorksheet(sheetName);
+
+  let totalGeral = 0;
+  const tableRows = rowsDetalhe.map((r) => {
+    const v = normalizeNumber(r.total_valor);
+    totalGeral += v;
+    return [r.Funcionario ?? '', r.Descricao ?? '', v];
+  });
+
+  tableRows.push(['', 'TOTAL GERAL', totalGeral]);
+
+  formatSheetB2Table(
+    ws,
+    ['Funcionario', 'Centro de Custo (Descricao)', 'Valor'],
+    tableRows,
+    [2]
+  );
+
+  const lastRow = 2 + tableRows.length;
+  ws.getRow(lastRow).font = { bold: true };
+
+  ws.getColumn(2).width = 32;
+  ws.getColumn(3).width = 40;
+  ws.getColumn(4).width = 18;
+}
+
+function hasRows(rows) {
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 async function generateUnimedReport(db, outPath) {
   // 1) Validação pendências (separadas por tipo)
   const pendenciasDependenteSemResp = db.prepare(SQL_VALIDACAO_DEPENDENTE_SEM_RESP).all();
@@ -161,11 +192,11 @@ async function generateUnimedReport(db, outPath) {
 
   const pendencias = [
     ...pendenciasDependenteSemResp.map((r) => ({
-      tipo_pendencia: 'DEPENDENTE_SEM_CPFRESP',
+      tipo_pendencia: 'Dependente não possui CPF do responsável informado',
       ...r,
     })),
     ...pendenciasTpNaoDSemFuncionario.map((r) => ({
-      tipo_pendencia: 'TP_NAO_D_SEM_FUNCIONARIO',
+      tipo_pendencia: 'Beneficiário não encontrado na base de funcionários',
       ...r,
     })),
   ];
@@ -173,10 +204,10 @@ async function generateUnimedReport(db, outPath) {
   if (pendencias.length > 0) {
     const details = [];
     if (pendenciasDependenteSemResp.length > 0) {
-      details.push(`${pendenciasDependenteSemResp.length} dependente(s) com cpfresponsavel em branco`);
+      details.push(`${pendenciasDependenteSemResp.length} dependente(s) sem CPF do responsável informado`);
     }
     if (pendenciasTpNaoDSemFuncionario.length > 0) {
-      details.push(`${pendenciasTpNaoDSemFuncionario.length} beneficiario(s) tipo diferente de D sem funcionario`);
+      details.push(`${pendenciasTpNaoDSemFuncionario.length} beneficiário(s) não encontrado(s) na base de funcionários`);
     }
 
     return {
@@ -196,15 +227,34 @@ async function generateUnimedReport(db, outPath) {
   const resumoCCustoOD = db.prepare(SQL_ODONTO).all();
   const resumoCCustoUpHealth = db.prepare(SQL_Up_Health).all();
   const demitidos = db.prepare(SQL_QUERY_02).all();
+  const detalheUnimed = db.prepare(SQL_DETALHE_UNIMED).all();
+  const detalheOdonto = db.prepare(SQL_DETALHE_ODONTO).all();
+  const detalheUpHealth = db.prepare(SQL_DETALHE_UP_HEALTH).all();
 
   // 3) XLSX (ExcelJS)
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'ImportadorBeneficios';
   workbook.created = new Date();
 
-  addCCustoResumoSheet(workbook, resumoCCusto,'Plano Unimed');
-  addCCustoResumoSheet(workbook, resumoCCustoOD,'Odonto Prev');
-  addCCustoResumoSheet(workbook, resumoCCustoUpHealth,'Up Health');
+  if (hasRows(resumoCCusto)) {
+    addCCustoResumoSheet(workbook, resumoCCusto, 'Plano Unimed');
+  }
+  if (hasRows(resumoCCustoOD)) {
+    addCCustoResumoSheet(workbook, resumoCCustoOD, 'Odonto Prev');
+  }
+  if (hasRows(resumoCCustoUpHealth)) {
+    addCCustoResumoSheet(workbook, resumoCCustoUpHealth, 'Up Health');
+  }
+
+  if (hasRows(detalheUnimed)) {
+    addDetalhamentoSheet(workbook, detalheUnimed, 'Detalhe Unimed');
+  }
+  if (hasRows(detalheOdonto)) {
+    addDetalhamentoSheet(workbook, detalheOdonto, 'Detalhe Odonto');
+  }
+  if (hasRows(detalheUpHealth)) {
+    addDetalhamentoSheet(workbook, detalheUpHealth, 'Detalhe Up Health');
+  }
   addDemitidosSheet(workbook, demitidos);
 
   await workbook.xlsx.writeFile(outPath);
@@ -323,6 +373,72 @@ const SQL_Up_Health = `
     f.CCustoDescricao
     --,p.beneficiario
     order by f.CCustoDescricao;`;
+
+// Detalhamento Unimed por funcionário e centro de custo
+const SQL_DETALHE_UNIMED = `
+WITH base AS (
+  SELECT
+    p.*,
+    COALESCE(
+      (SELECT d.cpfresponsavel
+       FROM unimed_dependente d
+       WHERE d.cpf = p.cpf
+       LIMIT 1),
+      p.cpf
+    ) AS cpf_func
+  FROM planounimed p
+)
+SELECT
+  f.Nome AS Funcionario,
+  f.CCustoDescricao AS Descricao,
+  SUM(
+    CAST(
+      REPLACE(REPLACE(REPLACE(b.valor,'R$',''),' ',''),',','.') AS REAL
+    )
+  ) AS total_valor
+FROM base b
+JOIN funcionario f
+  ON f.CPF = b.cpf_func
+GROUP BY f.Nome, f.CCustoDescricao
+ORDER BY f.Nome, f.CCustoDescricao;
+`;
+
+// Detalhamento Odonto por funcionário e centro de custo
+const SQL_DETALHE_ODONTO = `
+SELECT
+  f.Nome AS Funcionario,
+  f.CCustoDescricao AS Descricao,
+  SUM(
+    CAST(
+      REPLACE(REPLACE(REPLACE(p.Valor,'R$',''),' ',''),',','.') AS REAL
+    )
+  ) AS total_valor
+FROM funcionario f
+JOIN planoodonto p
+  ON p.Nome = f.Nome
+WHERE IFNULL(p.Valor,'') <> ''
+GROUP BY f.Nome, f.CCustoDescricao
+ORDER BY f.Nome, f.CCustoDescricao;
+`;
+
+// Detalhamento Up Health por funcionário e centro de custo
+const SQL_DETALHE_UP_HEALTH = `
+SELECT
+  f.Nome AS Funcionario,
+  f.CCustoDescricao AS Descricao,
+  SUM(
+    CAST(
+      REPLACE(REPLACE(REPLACE(p.valor_total,'R$',''),' ',''),',','.') AS REAL
+    )
+  ) AS total_valor
+FROM planoup p
+LEFT JOIN funcionario f
+  ON REPLACE(REPLACE(p.cpf,'.',''),'-','') = REPLACE(REPLACE(f.CPF,'.',''),'-','')
+WHERE IFNULL(p.valor_total,'') <> ''
+  AND p.valor_total <> 0
+GROUP BY f.Nome, f.CCustoDescricao
+ORDER BY f.Nome, f.CCustoDescricao;
+`;
 
 // Query 02 (Demitidos)
 const SQL_QUERY_02 = `

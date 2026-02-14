@@ -1,8 +1,8 @@
 function setBusy(isBusy) {
   $('btnPickPdf').disabled = isBusy;
   $('btnImportPdf').disabled = isBusy;
+  $('btnDeletePlan').disabled = isBusy;
   $('planSource').disabled = isBusy;
-  if (isBusy) setReportMenuEnabled(false);
 }
 
 function setPlanProgress(v, status) {
@@ -33,34 +33,15 @@ function rowsToPreviewLocal(rows) {
   };
 }
 
-function openPendenciasModal(preview) {
-  $('modalPendencias').style.display = 'flex';
-  renderTable('modalPendenciasTable', preview);
-}
-
-function closePendenciasModal() {
-  $('modalPendencias').style.display = 'none';
-  $('modalPendenciasTable').innerHTML = '';
-}
-
 async function refreshPlansGrid() {
   const source = $('planSource').value;
-  const preview = await window.api.getBenefitsPreview(source, 500);
+  const preview = await window.api.getBenefitsPreview(source, 5000);
   renderTable('planTable', preview);
-
-  const hasRows = !!(preview && preview.rows && preview.rows.length > 0);
-  const isUnimed = String(source || '').toLowerCase() === 'unimed';
-  setReportMenuEnabled(isUnimed && hasRows);
 }
 
 async function generateUnimedReportFromMenu() {
-  const source = $('planSource').value;
-  if (String(source || '').toLowerCase() !== 'unimed') {
-    return alert('Relatorio disponivel somente para Unimed (por enquanto).');
-  }
-
   setBusy(true);
-  setPlanProgress(5, 'Gerando relatorio...');
+  setPlanProgress(5, 'Gerando relatório...');
   try {
     const res = await window.api.generateUnimedReport();
 
@@ -77,9 +58,8 @@ async function generateUnimedReportFromMenu() {
       const reason = buildReportFailureMessage(res);
 
       if (preview && preview.rows?.length) {
-        openPendenciasModal(preview);
-        setPlanProgress(0, 'Pendencias encontradas.');
-        alert(reason);
+        openPendenciasPopup(preview, reason);
+        setPlanProgress(0, 'Pendências encontradas.');
         return;
       }
 
@@ -87,8 +67,8 @@ async function generateUnimedReportFromMenu() {
       return alert(reason);
     }
 
-    setPlanProgress(100, 'OK. Relatorio gerado.');
-    appendLog(`Relatorio gerado: ${res.file}`);
+    setPlanProgress(100, 'OK. Relatório gerado.');
+    appendLog(`Relatório gerado: ${res.file}`);
     await handleReportSuccess(res.file);
   } catch (e) {
     setPlanProgress(0, 'Erro.');
@@ -108,19 +88,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   window.api.onPythonLog((line) => appendLog(line));
 
-  $('btnClosePendencias').addEventListener('click', closePendenciasModal);
-  $('btnFecharPendencias').addEventListener('click', closePendenciasModal);
-
-  $('modalPendencias').addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'modalPendencias') closePendenciasModal();
-  });
-
   $('btnPickPdf').addEventListener('click', async () => {
     const p = await window.api.pickPdf();
     if (p) $('pdfPath').value = p;
   });
 
   $('planSource').addEventListener('change', async () => {
+    $('log').value = '';
     try { await refreshPlansGrid(); } catch {}
   });
 
@@ -141,10 +115,37 @@ window.addEventListener('DOMContentLoaded', () => {
         return alert(res?.error || 'Falha ao importar PDF.');
       }
 
-      setPlanProgress(75, 'Atualizando previa...');
+      setPlanProgress(75, 'Atualizando prévia...');
       await refreshPlansGrid();
 
       setPlanProgress(100, 'OK. PDF importado.');
+    } catch (e) {
+      setPlanProgress(0, 'Erro.');
+      alert(String(e?.message || e));
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  $('btnDeletePlan').addEventListener('click', async () => {
+    const source = $('planSource').value;
+    const sourceLabel = String(source || '').trim() || 'plano selecionado';
+
+    const ok = confirm(`Deseja excluir todos os registros de ${sourceLabel}?`);
+    if (!ok) return;
+
+    setBusy(true);
+    setPlanProgress(5, 'Excluindo registros...');
+    try {
+      const res = await window.api.deleteBenefitsBySource(source);
+      if (!res?.ok) {
+        setPlanProgress(0, 'Erro.');
+        return alert(res?.error || 'Falha ao excluir registros do plano.');
+      }
+
+      await refreshPlansGrid();
+      setPlanProgress(100, `OK. ${res.changes ?? 0} registro(s) excluído(s).`);
+      appendLog(`Exclusão concluída em ${sourceLabel}: ${res.changes ?? 0} registro(s).`);
     } catch (e) {
       setPlanProgress(0, 'Erro.');
       alert(String(e?.message || e));

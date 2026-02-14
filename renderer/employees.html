@@ -6,22 +6,7 @@
   <link rel="stylesheet" href="./css/app.css" />
 </head>
 <body>
-  <div class="header">
-    <div class="nav" id="nav"></div>
-
-    <div class="menu-dd" id="reportMenuWrap">
-      <button class="menu-dd__btn" id="btnReportMenu" type="button" aria-haspopup="true" aria-expanded="false">
-        Gerar Relatorio <span class="menu-dd__chev">▾</span>
-      </button>
-      <div class="menu-dd__panel" role="menu" aria-label="Menu de relatorios">
-        <button class="menu-dd__item" id="btnRelatorioUnimedMenu" type="button" role="menuitem">
-          Unimed por Centro de Custo
-        </button>
-      </div>
-    </div>
-
-    <div class="page-title" id="pageTitle">Funcionarios (XLSX)</div>
-  </div>
+  <div id="globalHeader"></div>
 
   <div class="page-wrap">
     <div class="card">
@@ -33,11 +18,12 @@
       </div>
 
       <div class="line">
-        <button class="btn" id="btnImportXlsx">Importar</button>
-
-        <label class="muted" for="dismissMonths">Demitidos (meses)</label>
-        <select id="dismissMonths" title="0-6 meses">
-          <option value="0">0</option>
+        <label class="muted" for="dismissMonths">Demitidos – últimos (X) meses</label>
+        <select id="dismissMonths" title="Selecione a regra para demitidos">
+          <option value="" selected>Selecione...</option>
+          <option value="todos">Todos</option>
+          <option value="nenhum">Nenhum</option>
+          <option value="mes_atual">Mês Atual</option>
           <option value="1">1</option>
           <option value="2">2</option>
           <option value="3">3</option>
@@ -52,7 +38,10 @@
           <option value="12">12</option>
         </select>
 
-        <span class="muted">Depois: apaga benefícios e executa o único DELETE em funcionario.</span>
+        
+      </div>
+      <div class="line">
+        <button class="btn" id="btnImportXlsx">Importar</button>
       </div>
 
       <div class="line">
@@ -62,7 +51,7 @@
     </div>
 
     <div class="card" style="margin-top:16px;">
-      <div class="title">Prévia (funcionario)</div>
+      <div class="title">Prévia (funcionário)</div>
       <div class="grid-wrapper">
         <div id="empTable"></div>
       </div>

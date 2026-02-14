@@ -52,6 +52,58 @@ function ensureSchema(db) {
     ON unimed_dependente(cpf);
   `);
 
+  // ✅ Vale Alimentação
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vale_alimentacao (
+      Id_Vale INTEGER PRIMARY KEY AUTOINCREMENT,
+      Nome TEXT NOT NULL,
+      Valor REAL NOT NULL DEFAULT 0,
+      dias_trabalhados INTEGER NOT NULL DEFAULT 0
+    );
+  `);
+
+  // Migração defensiva para bases antigas sem a coluna dias_trabalhados
+  try {
+    db.exec(`ALTER TABLE vale_alimentacao ADD COLUMN dias_trabalhados INTEGER NOT NULL DEFAULT 0`);
+  } catch {}
+
+  // ✅ Ligação Centro de Custo -> Vale Alimentação
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vale_ccusto (
+      CCusto TEXT PRIMARY KEY,
+      Id_Vale INTEGER NOT NULL,
+      FOREIGN KEY (Id_Vale) REFERENCES vale_alimentacao(Id_Vale)
+    );
+  `);
+
+  // ✅ Apontamento para Vale Alimentação por funcionário
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vale_apontamento_funcionario (
+      CPF TEXT PRIMARY KEY,
+      dias_trabalhados INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // ✅ Faltas por funcionário (manutenção separada)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vale_falta_funcionario (
+      CPF TEXT PRIMARY KEY,
+      faltas INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Migração simples: se existirem faltas no apontamento antigo, copia para a nova tabela
+  try {
+    db.exec(`
+      INSERT OR IGNORE INTO vale_falta_funcionario (CPF, faltas, updated_at)
+      SELECT CPF, COALESCE(faltas, 0), datetime('now')
+      FROM vale_apontamento_funcionario
+      WHERE COALESCE(faltas, 0) > 0
+    `);
+  } catch {}
+
   // ❌ NÃO criar planounimed/planoup/planoodonto aqui.
   // Quem cria é o Python, com o schema correto.
 }
@@ -93,7 +145,21 @@ function clearBenefits(db) {
   return total;
 }
 
-function getTablePreview(db, table, maxRows = 500) {
+function clearValeFaltas(db) {
+  return safeDeleteAll(db, 'vale_falta_funcionario');
+}
+
+function deleteBenefitsBySource(db, source) {
+  const s = String(source || '').toLowerCase();
+  const table =
+    s === 'uphealth' ? 'planoup' :
+    s === 'odontoprev' ? 'planoodonto' :
+    'planounimed';
+
+  return safeDeleteAll(db, table);
+}
+
+function getTablePreview(db, table, maxRows = 5000) {
   const cols = getColumns(db, table);
   if (cols.length === 0) return { columns: [], rows: [] };
 
@@ -106,11 +172,11 @@ function getTablePreview(db, table, maxRows = 500) {
   };
 }
 
-function getEmployeesPreview(db, maxRows = 500) {
+function getEmployeesPreview(db, maxRows = 5000) {
   return getTablePreview(db, 'funcionario', maxRows);
 }
 
-function getBenefitsPreview(db, source, maxRows = 500) {
+function getBenefitsPreview(db, source, maxRows = 5000) {
   const s = (source || '').toLowerCase();
   const table =
     s === 'uphealth' ? 'planoup' :
@@ -120,18 +186,268 @@ function getBenefitsPreview(db, source, maxRows = 500) {
 }
 
 // ✅ Preview dependentes
-function getDependentesPreview(db, maxRows = 500) {
+function getDependentesPreview(db, maxRows = 5000) {
   return getTablePreview(db, 'unimed_dependente', maxRows);
 }
 
-// ✅ ÚNICO DELETE em funcionario (um lugar só)
-function deleteDemitidos(db, meses) {
-  const m = Number.isFinite(meses) ? Math.max(0, Math.min(6, meses)) : 0;
+function getDependentesUnimedForExport(db) {
+  return db.prepare(`
+    SELECT beneficiario, cpf, cpfresponsavel
+      FROM unimed_dependente
+     WHERE IFNULL(TRIM(cpfresponsavel), '') <> ''
+     ORDER BY beneficiario, cpf
+  `).all();
+}
 
-  if (m <= 0) {
-    // 0 meses => mais seguro: não apaga nada
+function getValesAlimentacao(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT Id_Vale, Nome, Valor, dias_trabalhados
+      FROM vale_alimentacao
+     ORDER BY Id_Vale
+  `).all();
+}
+
+function saveValeAlimentacao(db, payload) {
+  ensureSchema(db);
+  const idRaw = Number(payload?.Id_Vale);
+  const hasId = Number.isFinite(idRaw) && idRaw > 0;
+  const nome = String(payload?.Nome || '').trim();
+  const valor = Number(payload?.Valor);
+  const dias = Number(payload?.dias_trabalhados ?? 0);
+
+  if (!nome) throw new Error('Nome é obrigatório.');
+  if (!Number.isFinite(valor) || valor < 0) throw new Error('Valor inválido.');
+  if (!Number.isFinite(dias) || dias < 0) throw new Error('Dias trabalhados inválido.');
+
+  if (hasId) {
+    const upd = db.prepare(`
+      UPDATE vale_alimentacao
+         SET Nome = ?, Valor = ?, dias_trabalhados = ?
+       WHERE Id_Vale = ?
+    `);
+    return upd.run(nome, valor, Math.trunc(dias), idRaw).changes;
+  }
+
+  const ins = db.prepare(`
+    INSERT INTO vale_alimentacao (Nome, Valor, dias_trabalhados)
+    VALUES (?, ?, ?)
+  `);
+  const r = ins.run(nome, valor, Math.trunc(dias));
+  return r.changes;
+}
+
+function deleteValeAlimentacao(db, idVale) {
+  ensureSchema(db);
+  const id = Number(idVale);
+  if (!Number.isFinite(id) || id <= 0) throw new Error('Id_Vale inválido.');
+
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM vale_ccusto WHERE Id_Vale = ?`).run(id);
+    return db.prepare(`DELETE FROM vale_alimentacao WHERE Id_Vale = ?`).run(id).changes;
+  });
+  return tx();
+}
+
+function getCentrosCusto(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT
+      TRIM(CCusto) AS CCusto,
+      TRIM(CCustoDescricao) AS CCustoDescricao
+    FROM funcionario
+    WHERE IFNULL(TRIM(CCusto), '') <> ''
+    GROUP BY TRIM(CCusto), TRIM(CCustoDescricao)
+    ORDER BY TRIM(CCusto)
+  `).all();
+}
+
+function getValeCcustoVinculos(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT
+      vc.CCusto,
+      COALESCE(f.CCustoDescricao, '') AS CCustoDescricao,
+      vc.Id_Vale,
+      va.Nome AS NomeVale,
+      va.Valor AS ValorVale
+    FROM vale_ccusto vc
+    LEFT JOIN vale_alimentacao va ON va.Id_Vale = vc.Id_Vale
+    LEFT JOIN (
+      SELECT TRIM(CCusto) AS CCusto, MAX(TRIM(CCustoDescricao)) AS CCustoDescricao
+      FROM funcionario
+      GROUP BY TRIM(CCusto)
+    ) f ON f.CCusto = vc.CCusto
+    ORDER BY vc.CCusto
+  `).all();
+}
+
+function saveValeCcustoVinculo(db, payload) {
+  ensureSchema(db);
+  const ccusto = String(payload?.CCusto || '').trim();
+  const idVale = Number(payload?.Id_Vale);
+
+  if (!ccusto) throw new Error('Centro de custo é obrigatório.');
+  if (!Number.isFinite(idVale) || idVale <= 0) throw new Error('Id_Vale inválido.');
+
+  const vale = db.prepare(`SELECT Id_Vale FROM vale_alimentacao WHERE Id_Vale = ?`).get(idVale);
+  if (!vale) throw new Error('Vale alimentação não encontrado.');
+
+  const stmt = db.prepare(`
+    INSERT INTO vale_ccusto (CCusto, Id_Vale)
+    VALUES (?, ?)
+    ON CONFLICT(CCusto) DO UPDATE SET
+      Id_Vale = excluded.Id_Vale
+  `);
+  return stmt.run(ccusto, idVale).changes;
+}
+
+function deleteValeCcustoVinculo(db, ccusto) {
+  ensureSchema(db);
+  const key = String(ccusto || '').trim();
+  if (!key) throw new Error('Centro de custo inválido.');
+  return db.prepare(`DELETE FROM vale_ccusto WHERE CCusto = ?`).run(key).changes;
+}
+
+function getFuncionariosParaApontamento(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT
+      TRIM(CPF) AS CPF,
+      MAX(TRIM(Cadastro)) AS Cadastro,
+      MAX(TRIM(Nome)) AS Nome
+    FROM funcionario
+    WHERE IFNULL(TRIM(CPF), '') <> ''
+    GROUP BY TRIM(CPF)
+    ORDER BY MAX(TRIM(Nome))
+  `).all();
+}
+
+function getValeApontamentos(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT
+      a.CPF,
+      COALESCE(f.Cadastro, '') AS Cadastro,
+      COALESCE(f.Nome, '') AS Nome,
+      a.dias_trabalhados,
+      a.updated_at
+    FROM vale_apontamento_funcionario a
+    LEFT JOIN (
+      SELECT TRIM(CPF) AS CPF, MAX(TRIM(Cadastro)) AS Cadastro, MAX(TRIM(Nome)) AS Nome
+      FROM funcionario
+      GROUP BY TRIM(CPF)
+    ) f ON f.CPF = a.CPF
+    ORDER BY COALESCE(f.Nome, ''), a.CPF
+  `).all();
+}
+
+function saveValeApontamento(db, payload) {
+  ensureSchema(db);
+  const cpf = String(payload?.CPF || '').trim();
+  const dias = Number(payload?.dias_trabalhados);
+
+  if (!cpf) throw new Error('CPF é obrigatório.');
+  if (!Number.isFinite(dias) || dias < 0) throw new Error('Dias trabalhados inválido.');
+
+  const stmt = db.prepare(`
+    INSERT INTO vale_apontamento_funcionario (CPF, dias_trabalhados, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(CPF) DO UPDATE SET
+      dias_trabalhados = excluded.dias_trabalhados,
+      updated_at = datetime('now')
+  `);
+  return stmt.run(cpf, Math.trunc(dias)).changes;
+}
+
+function deleteValeApontamento(db, cpf) {
+  ensureSchema(db);
+  const key = String(cpf || '').trim();
+  if (!key) throw new Error('CPF inválido.');
+  return db.prepare(`DELETE FROM vale_apontamento_funcionario WHERE CPF = ?`).run(key).changes;
+}
+
+function getValeFaltas(db) {
+  ensureSchema(db);
+  return db.prepare(`
+    SELECT
+      f.CPF,
+      COALESCE(e.Cadastro, '') AS Cadastro,
+      COALESCE(e.Nome, '') AS Nome,
+      f.faltas,
+      f.updated_at
+    FROM vale_falta_funcionario f
+    LEFT JOIN (
+      SELECT TRIM(CPF) AS CPF, MAX(TRIM(Cadastro)) AS Cadastro, MAX(TRIM(Nome)) AS Nome
+      FROM funcionario
+      GROUP BY TRIM(CPF)
+    ) e ON e.CPF = f.CPF
+    ORDER BY COALESCE(e.Nome, ''), f.CPF
+  `).all();
+}
+
+function saveValeFalta(db, payload) {
+  ensureSchema(db);
+  const cpf = String(payload?.CPF || '').trim();
+  const faltas = Number(payload?.faltas);
+
+  if (!cpf) throw new Error('CPF é obrigatório.');
+  if (!Number.isFinite(faltas) || faltas < 0) throw new Error('Faltas inválidas.');
+
+  const stmt = db.prepare(`
+    INSERT INTO vale_falta_funcionario (CPF, faltas, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(CPF) DO UPDATE SET
+      faltas = excluded.faltas,
+      updated_at = datetime('now')
+  `);
+  return stmt.run(cpf, Math.trunc(faltas)).changes;
+}
+
+function deleteValeFalta(db, cpf) {
+  ensureSchema(db);
+  const key = String(cpf || '').trim();
+  if (!key) throw new Error('CPF inválido.');
+  return db.prepare(`DELETE FROM vale_falta_funcionario WHERE CPF = ?`).run(key).changes;
+}
+
+// ✅ ÚNICO DELETE em funcionario (um lugar só)
+function deleteDemitidos(db, regra) {
+  const raw = String(regra ?? '').trim().toLowerCase();
+
+  // "todos" => não deleta nenhum demitido
+  if (!raw || raw === 'todos') {
     return 0;
   }
+
+  // "nenhum"/"nehum" => deleta todos os demitidos
+  if (raw === 'nenhum' || raw === 'nehum') {
+    const stmtNenhum = db.prepare(`
+      DELETE FROM funcionario
+       WHERE (TRIM(Situacao) = '7' OR TRIM(Situacao) = '007')
+    `);
+    return stmtNenhum.run().changes;
+  }
+
+  if (raw === 'mes_atual') {
+    const stmtMesAtual = db.prepare(`
+      DELETE FROM funcionario
+       WHERE (TRIM(Situacao) = '7' OR TRIM(Situacao) = '007')
+         AND COALESCE(
+               strftime('%Y-%m', date(
+                 substr(DataAfastamento, 7, 4) || '-' ||
+                 substr(DataAfastamento, 4, 2) || '-' ||
+                 substr(DataAfastamento, 1, 2)
+               )),
+               ''
+             ) <> strftime('%Y-%m', 'now', 'localtime')
+    `);
+    return stmtMesAtual.run().changes;
+  }
+
+  const mNum = Number(raw);
+  const m = Number.isFinite(mNum) ? Math.max(0, mNum) : 0;
+  if (m <= 0) return 0;
 
   // limite = 1º dia do mês atual - m meses (yyyy-MM-dd)
   const now = new Date();
@@ -139,7 +455,7 @@ function deleteDemitidos(db, meses) {
   const limite = new Date(first.getFullYear(), first.getMonth() - m, 1);
   const limiteStr = limite.toISOString().slice(0, 10);
 
-  const stmt = db.prepare(`
+  const stmtMeses = db.prepare(`
     DELETE FROM funcionario
       WHERE (TRIM(Situacao) = '7' OR TRIM(Situacao) = '007')
         AND IFNULL(TRIM(DataAfastamento),'') <> ''
@@ -150,7 +466,7 @@ function deleteDemitidos(db, meses) {
             ) < date(?)
   `);
 
-  return stmt.run(limiteStr).changes;
+  return stmtMeses.run(limiteStr).changes;
 }
 
 /**
@@ -250,6 +566,92 @@ function updateCpfResponsavelById(db, id, cpfresponsavel) {
   `).run(cpfresp, rid).changes;
 }
 
+function normalizeCpfKey(cpf) {
+  return String(cpf || '').replace(/\D/g, '');
+}
+
+function importDependentesUnimedRows(db, rows) {
+  ensureSchema(db);
+  migrateUnimedDependenteUniqueCpf(db);
+
+  const all = db.prepare(`
+    SELECT id, beneficiario, cpf, cpfresponsavel
+      FROM unimed_dependente
+  `).all();
+
+  const byCpfKey = new Map();
+  for (const r of all) {
+    const key = normalizeCpfKey(r.cpf);
+    if (!key) continue;
+    if (!byCpfKey.has(key)) byCpfKey.set(key, r);
+  }
+
+  const insertStmt = db.prepare(`
+    INSERT INTO unimed_dependente (beneficiario, cpf, cpfresponsavel)
+    VALUES (?, ?, ?)
+  `);
+
+  const updateStmt = db.prepare(`
+    UPDATE unimed_dependente
+       SET beneficiario = CASE
+            WHEN IFNULL(TRIM(?), '') <> '' THEN ?
+            ELSE beneficiario
+          END,
+           cpfresponsavel = CASE
+            WHEN IFNULL(TRIM(cpfresponsavel), '') = '' AND IFNULL(TRIM(?), '') <> '' THEN ?
+            ELSE cpfresponsavel
+          END
+     WHERE id = ?
+  `);
+
+  let inserted = 0;
+  let updated = 0;
+  let ignored = 0;
+
+  const tx = db.transaction(() => {
+    for (const row of rows || []) {
+      const beneficiario = String(row?.beneficiario || '').trim();
+      const cpf = String(row?.cpf || '').trim();
+      const cpfresponsavel = String(row?.cpfresponsavel || '').trim();
+
+      if (!beneficiario || !cpf) {
+        ignored++;
+        continue;
+      }
+
+      const key = normalizeCpfKey(cpf);
+      if (!key) {
+        ignored++;
+        continue;
+      }
+
+      const existing = byCpfKey.get(key);
+      if (existing) {
+        const r = updateStmt.run(
+          beneficiario,
+          beneficiario,
+          cpfresponsavel,
+          cpfresponsavel,
+          existing.id
+        );
+        if (r.changes > 0) updated++;
+        else ignored++;
+        continue;
+      }
+
+      try {
+        insertStmt.run(beneficiario, cpf, cpfresponsavel);
+        inserted++;
+      } catch {
+        ignored++;
+      }
+    }
+  });
+
+  tx();
+  return { inserted, updated, ignored, total: (rows || []).length };
+}
+
 /**
  * ✅ Popular unimed_dependente após importar planounimed
  * Regra:
@@ -309,14 +711,32 @@ module.exports = {
   getDbPath,
   ensureSchema,
   clearBenefits,
+  clearValeFaltas,
+  deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
+  getDependentesUnimedForExport,
+  getValesAlimentacao,
+  saveValeAlimentacao,
+  deleteValeAlimentacao,
+  getCentrosCusto,
+  getValeCcustoVinculos,
+  saveValeCcustoVinculo,
+  deleteValeCcustoVinculo,
+  getFuncionariosParaApontamento,
+  getValeApontamentos,
+  saveValeApontamento,
+  deleteValeApontamento,
+  getValeFaltas,
+  saveValeFalta,
+  deleteValeFalta,
   getTablePreview,
   deleteDemitidos,
   repairPlanounimedIfNeeded,
   migrateUnimedDependenteUniqueCpf,
   populateUnimedDependentesFromPlano,
   deleteDependenteById,
-  updateCpfResponsavelById
+  updateCpfResponsavelById,
+  importDependentesUnimedRows
 };

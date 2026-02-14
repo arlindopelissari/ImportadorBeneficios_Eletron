@@ -22,7 +22,7 @@ function renderDependentes(preview) {
   const rows = preview.rows;
 
   let html = '<table><thead><tr>';
-  for (const c of cols) html += `<th>${escapeHtml(c)}</th>`;
+  for (const c of cols) html += `<th>${escapeHtml(prettyHeaderName(c))}</th>`;
   html += '<th>Ações</th>';
   html += '</tr></thead><tbody>';
 
@@ -62,13 +62,17 @@ function renderDependentes(preview) {
 
 async function refreshDeps() {
   setStatus('Atualizando...');
-  const preview = await window.api.getDependentesPreview(500);
+  const preview = await window.api.getDependentesPreview(5000);
   renderDependentes(preview);
   setStatus('OK');
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  setupGlobalHeader({ activePage: 'maintenance.html', pageTitle: 'Depend. Unimed' });
+  setupGlobalHeader({
+    activePage: 'maintenance.html',
+    pageTitle: 'Depend. Unimed',
+    onDependentesImported: refreshDeps
+  });
 
   $('btnRefreshDep').addEventListener('click', () =>
     refreshDeps().catch(e => alert(String(e?.message || e)))
