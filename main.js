@@ -332,7 +332,7 @@ ipcMain.handle('generate-unimed-report', async () => {
     if (res.canceled || !res.filePath) {
       return { ok: false, canceled: true };
     }
-
+ 
     db = openDb();
     ensureSchema(db);
 

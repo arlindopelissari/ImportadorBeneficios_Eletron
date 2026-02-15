@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', {
   pickXlsx: () => ipcRenderer.invoke('pick-xlsx'),
   pickPdf: () => ipcRenderer.invoke('pick-pdf'),
-
+ 
   getEmployeesPreview: (maxRows) => ipcRenderer.invoke('get-employees-preview', maxRows),
   getBenefitsPreview: (source, maxRows) => ipcRenderer.invoke('get-benefits-preview', source, maxRows),
   getDependentesPreview: (maxRows) => ipcRenderer.invoke('get-dependentes-preview', maxRows),

@@ -504,7 +504,7 @@ Up AS (
     f.CPF             AS cpf,
     f.DataAfastamento AS DataAfastamento,
     SUM(
-      CAST(
+      CAST( 
         REPLACE(REPLACE(REPLACE(p.Valor,'R$',''),' ',''),',','.') AS REAL
       )
     ) AS total_valor

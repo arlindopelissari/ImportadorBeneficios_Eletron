@@ -7,7 +7,7 @@ const { app } = require('electron');
 function resolveDbPath() {
   return path.join(app.getPath('userData'), 'sys.db');
 }
-
+ 
 function resolvePythonRuntimeDir() {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'python-runtime');

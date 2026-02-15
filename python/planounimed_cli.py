@@ -3,7 +3,7 @@
 #   py planounimed_cli.py --pdf "arquivo.pdf" --db "sys.db"
 # Dependencias:
 #   py -m pip install pdfplumber
-
+ 
 import argparse
 import re
 import sqlite3

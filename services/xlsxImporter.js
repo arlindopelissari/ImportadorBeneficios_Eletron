@@ -61,7 +61,7 @@ function importEmployeesXlsx(db, xlsxPath) {
 
   const headerRow = rows[0].map(normHeader);
   validateHeaders(headerRow);
-
+ 
   const idx = {};
   headerRow.forEach((h, i) => { if (h) idx[h] = i; });
 

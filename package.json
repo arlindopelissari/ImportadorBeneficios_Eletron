@@ -1,6 +1,6 @@
 {
   "name": "importador-beneficios-eletron",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Importador de Benefícios (Eletron)",
   "main": "main.js",
   "author": "Eletron",
