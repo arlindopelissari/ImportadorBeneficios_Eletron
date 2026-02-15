@@ -454,7 +454,7 @@ function deleteDemitidos(db, regra) {
   const first = new Date(now.getFullYear(), now.getMonth(), 1);
   const limite = new Date(first.getFullYear(), first.getMonth() - m, 1);
   const limiteStr = limite.toISOString().slice(0, 10);
-
+ 
   const stmtMeses = db.prepare(`
     DELETE FROM funcionario
       WHERE (TRIM(Situacao) = '7' OR TRIM(Situacao) = '007')
