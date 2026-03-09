@@ -13,8 +13,14 @@ const ALIASES = {
   'descrição': 'CCustoDescricao',
   'descricao': 'CCustoDescricao',
   'admissão': 'Admissao',
+  'data admissão': 'Admissao',
+  'data admissao': 'Admissao',
   'situação': 'Situacao',
-  'data afastamento': 'DataAfastamento'
+  'data afastamento': 'DataAfastamento',
+  'data nascimento': 'Nascimento',
+  'código vínculo': 'Tipo',
+  'codigo vínculo': 'Tipo',
+  'codigo vinculo': 'Tipo'
 };
 
 function normHeader(h) {
@@ -48,7 +54,7 @@ function isCadastroNewer(a, b) {
 }
 
 function importEmployeesXlsx(db, xlsxPath) {
-  if (!xlsxPath) throw new Error('Selecione um XLSX válido.');
+  if (!xlsxPath) throw new Error('Selecione uma planilha valida.');
 
   const wb = XLSX.readFile(xlsxPath, { cellDates: false });
   const sheetName = wb.SheetNames?.[0];

@@ -40,12 +40,15 @@ const { importEmployeesXlsx } = require('./services/xlsxImporter');
 const { runPythonImport } = require('./services/pythonRunner');
 const { generateUnimedReport } = require('./services/unimedReport');
 const { generateValeReport } = require('./services/valeReport');
+const { buildDefaultOutputNames } = require('./services/valeProcessor');
 
 let mainWindow;
 let faltasWindow;
+let ajustesWindow;
 let lastXlsxDir = null;
 let lastPdfDir = null;
 let lastDependentesDir = null;
+let lastValeExportDir = null;
 
 // ============================
 // Paths (DEV vs PACKAGED)
@@ -119,6 +122,31 @@ function openFaltasWindow() {
   });
 }
 
+function openValeAjustesWindow() {
+  if (ajustesWindow && !ajustesWindow.isDestroyed()) {
+    if (ajustesWindow.isMinimized()) ajustesWindow.restore();
+    ajustesWindow.focus();
+    return;
+  }
+
+  ajustesWindow = new BrowserWindow({
+    width: 1180,
+    height: 760,
+    parent: mainWindow || undefined,
+    modal: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+
+  ajustesWindow.loadFile(path.join(__dirname, 'renderer', 'ajustes.html'));
+  ajustesWindow.on('closed', () => {
+    ajustesWindow = null;
+  });
+}
+
 // ============================
 // App lifecycle
 // ============================
@@ -127,6 +155,7 @@ app.whenReady().then(() => {
   lastXlsxDir = app.getPath('documents');
   lastPdfDir = app.getPath('documents');
   lastDependentesDir = app.getPath('documents');
+  lastValeExportDir = app.getPath('documents');
 
   const db = openDb();
   ensureSchema(db);
@@ -148,10 +177,10 @@ app.on('window-all-closed', () => {
 // ============================
 ipcMain.handle('pick-xlsx', async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
-    title: 'Selecione o XLSX de funcionários',
+    title: 'Selecione a planilha de funcionários',
     defaultPath: lastXlsxDir || app.getPath('documents'),
     properties: ['openFile'],
-    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    filters: [{ name: 'Excel', extensions: ['xlsx', 'xls', 'xlsm'] }]
   });
   if (res.canceled || res.filePaths.length === 0) return null;
   lastXlsxDir = path.dirname(res.filePaths[0]);
@@ -357,25 +386,48 @@ ipcMain.handle('generate-unimed-report', async () => {
 ipcMain.handle('generate-vale-report', async (_evt, payload) => {
   let db;
   try {
-    const dataBase = String(payload?.dataBase || '').trim();
-    if (!dataBase) return { ok: false, error: 'Informe a Data Base.' };
+    const mesReferencia = String(payload?.mesReferencia || '').trim();
+    const valorTicket = Number(payload?.valorTicket);
+    const valorComprocard = Number(payload?.valorComprocard);
 
-    const defaultPath = path.join(
-      app.getPath('documents'),
-      `Relatorio_Vale_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
-    );
+    if (!mesReferencia) return { ok: false, error: 'Informe o mês de referência.' };
+    if (!Number.isFinite(valorTicket) || valorTicket < 0) {
+      return { ok: false, error: 'Valor Ticket inválido.' };
+    }
+    if (!Number.isFinite(valorComprocard) || valorComprocard < 0) {
+      return { ok: false, error: 'Valor Comprocard inválido.' };
+    }
 
-    const res = await dialog.showSaveDialog(mainWindow, {
-      title: 'Salvar relatório de Vale Alimentação',
-      defaultPath,
-      filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    const folderPick = await dialog.showOpenDialog(mainWindow, {
+      title: 'Selecione a pasta de saída do Vale Alimentação',
+      defaultPath: lastValeExportDir || app.getPath('documents'),
+      properties: ['openDirectory']
     });
 
-    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+    if (folderPick.canceled || !folderPick.filePaths?.length) {
+      return { ok: false, canceled: true };
+    }
+
+    const outputDir = folderPick.filePaths[0];
+    lastValeExportDir = outputDir;
+    const outFiles = buildDefaultOutputNames(outputDir, mesReferencia);
 
     db = openDb();
     ensureSchema(db);
-    return await generateValeReport(db, res.filePath, dataBase);
+    const result = await generateValeReport(db, {
+      mesReferencia,
+      valorTicket,
+      valorComprocard,
+      outComprocardPath: outFiles.comprocard,
+      outTicketPath: outFiles.ticket
+    });
+
+    if (!result?.ok) return result;
+
+    return {
+      ...result,
+      outputDir
+    };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };
   } finally {
@@ -576,6 +628,15 @@ ipcMain.handle('save-vale-falta', async (_evt, payload) => {
 ipcMain.handle('open-faltas-window', async () => {
   try {
     openFaltasWindow();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  }
+});
+
+ipcMain.handle('open-vale-ajustes-window', async () => {
+  try {
+    openValeAjustesWindow();
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };

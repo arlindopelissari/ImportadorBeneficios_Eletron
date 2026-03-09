@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manter Afastamentos e Retornos</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Manutenção de Afastamentos e Retornos</div>
+      <div class="line line--faltas-controls">
+        <label for="funcionarioAjusteSelect">Funcionário</label>
+        <select id="funcionarioAjusteSelect"></select>
+        <label for="dataAfastamentoInput">Afastamento</label>
+        <input id="dataAfastamentoInput" type="date" />
+        <label for="dataRetornoInput">Retorno</label>
+        <input id="dataRetornoInput" type="date" />
+        <button class="btn" id="btnSalvarAjuste">Salvar</button>
+        <button class="btn" id="btnLimparAjuste">Limpar</button>
+        <button class="btn" id="btnAtualizarAjuste">Atualizar</button>
+      </div>
+      <div class="line">
+        <span class="status" id="ajusteStatus">Pronto</span>
+      </div>
+      <div class="grid-wrapper">
+        <div id="ajustesTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/ajustes.js"></script>
+</body>
+</html>

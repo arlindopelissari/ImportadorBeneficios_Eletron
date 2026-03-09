@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('api', {
   saveValeFalta: (payload) => ipcRenderer.invoke('save-vale-falta', payload),
   deleteValeFalta: (cpf) => ipcRenderer.invoke('delete-vale-falta', cpf),
   openFaltasWindow: () => ipcRenderer.invoke('open-faltas-window'),
+  openValeAjustesWindow: () => ipcRenderer.invoke('open-vale-ajustes-window'),
 
   importXlsx: (payload) => ipcRenderer.invoke('import-xlsx', payload),
   importPdf: (payload) => ipcRenderer.invoke('import-pdf', payload),

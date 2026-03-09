@@ -1,3 +1,5 @@
+let employeesPreview = { columns: [], rows: [] };
+
 function setBusy(b) {
   $('btnPickXlsx').disabled = b;
   $('dismissMonths').disabled = b;
@@ -9,13 +11,66 @@ function setEmpProgress(v, status) {
   if (status) $('empStatus').textContent = status;
 }
 
+function parseBrDateValue(value) {
+  const raw = String(value || '').trim();
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const year = Number(match[3]);
+  const dt = new Date(year, month, day);
+  if (Number.isNaN(dt.getTime())) return null;
+  return dt;
+}
+
+function compareNullableDates(a, b) {
+  if (a && b) return a.getTime() - b.getTime();
+  if (a && !b) return -1;
+  if (!a && b) return 1;
+  return 0;
+}
+
+function sortEmployeesPreview(preview, sortBy) {
+  if (!preview?.columns?.length || !Array.isArray(preview.rows)) return preview;
+
+  const rows = [...preview.rows];
+  const idxNome = preview.columns.indexOf('Nome');
+  const idxAdmissao = preview.columns.indexOf('Admissao');
+
+  if (sortBy === 'admissao' && idxAdmissao >= 0) {
+    rows.sort((a, b) => {
+      const byDate = compareNullableDates(parseBrDateValue(a[idxAdmissao]), parseBrDateValue(b[idxAdmissao]));
+      if (byDate !== 0) return byDate;
+
+      if (idxNome < 0) return 0;
+      return String(a[idxNome] || '').localeCompare(String(b[idxNome] || ''), 'pt-BR', { sensitivity: 'base' });
+    });
+  } else if (idxNome >= 0) {
+    rows.sort((a, b) =>
+      String(a[idxNome] || '').localeCompare(String(b[idxNome] || ''), 'pt-BR', { sensitivity: 'base' })
+    );
+  }
+
+  return {
+    columns: preview.columns,
+    rows
+  };
+}
+
+function renderEmployeesPreview() {
+  const sortBy = String($('empSortBy')?.value || 'nome').trim();
+  renderTable('empTable', sortEmployeesPreview(employeesPreview, sortBy));
+}
+
 async function refreshGrid() {
-  const preview = await window.api.getEmployeesPreview(5000);
-  renderTable('empTable', preview);
+  employeesPreview = await window.api.getEmployeesPreview(5000);
+  renderEmployeesPreview();
 }
 
 function clearPreview() {
   const host = $('empTable');
+  employeesPreview = { columns: [], rows: [] };
   if (!host) return;
   host.innerHTML = '<div class="muted" style="padding:10px;">Prévia limpa. Aguardando atualização...</div>';
 }
@@ -62,6 +117,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   $('dismissMonths').addEventListener('change', updateImportButtonState);
+  $('empSortBy').addEventListener('change', renderEmployeesPreview);
   updateImportButtonState();
 
   refreshGrid().catch((e) => {

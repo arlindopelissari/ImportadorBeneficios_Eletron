@@ -8,8 +8,9 @@
   "type": "commonjs",
 
   "scripts": {
-    "dev": "electron .",
-    "start": "electron .",
+    "dev": "set \"ELECTRON_RUN_AS_NODE=\" && electron .",
+    "start": "set \"ELECTRON_RUN_AS_NODE=\" && electron .",
+    "test": "node tests/valeProcessor.test.js",
     "postinstall": "electron-builder install-app-deps",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "dist": "npm run clean && electron-builder",

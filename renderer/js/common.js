@@ -41,6 +41,8 @@ function prettyHeaderName(name) {
     ValorVale: 'Valor do Vale',
     dias_trabalhados: 'Dias Trabalhados',
     faltas: 'Faltas',
+    data_afastamento: 'Data Afastamento',
+    data_retorno: 'Data Retorno',
     updated_at: 'Atualizado em'
   };
 
