@@ -10,6 +10,24 @@
  
   <div class="page-wrap">
     <div class="card">
+      <div class="title">Processamento de Vale Alimentação</div>
+      <div class="line">
+        <label for="mesReferenciaVale">Mês Referência</label>
+        <input id="mesReferenciaVale" type="month" />
+        <label for="valorTicketProcessamento">Valor Ticket</label>
+        <input id="valorTicketProcessamento" type="text" value="455,80" />
+        <label for="valorComprocardProcessamento">Valor Comprocard</label>
+        <input id="valorComprocardProcessamento" type="text" value="1100,00" />
+        <button class="btn" id="btnGerarArquivosVale">Gerar Arquivos</button>
+        <button class="btn" id="btnAbrirAjustes">Manter Afast./Retorno</button>
+        <button class="btn" id="btnAbrirFaltasProcesso">Manter Faltas</button>
+      </div>
+      <div class="line">
+        <span class="status" id="processamentoValeStatus">O Ticket será gerado em .xlsx com os dados dos beneficiários.</span>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="title">Cadastro de Vale Alimentação</div>
       <div class="line">
         <input id="idVale" type="hidden" />

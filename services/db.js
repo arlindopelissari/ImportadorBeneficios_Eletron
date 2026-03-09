@@ -81,9 +81,19 @@ function ensureSchema(db) {
     CREATE TABLE IF NOT EXISTS vale_apontamento_funcionario (
       CPF TEXT PRIMARY KEY,
       dias_trabalhados INTEGER NOT NULL DEFAULT 0,
+      data_afastamento TEXT NOT NULL DEFAULT '',
+      data_retorno TEXT NOT NULL DEFAULT '',
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  try {
+    db.exec(`ALTER TABLE vale_apontamento_funcionario ADD COLUMN data_afastamento TEXT NOT NULL DEFAULT ''`);
+  } catch {}
+
+  try {
+    db.exec(`ALTER TABLE vale_apontamento_funcionario ADD COLUMN data_retorno TEXT NOT NULL DEFAULT ''`);
+  } catch {}
 
   // ✅ Faltas por funcionário (manutenção separada)
   db.exec(`
@@ -309,6 +319,28 @@ function deleteValeCcustoVinculo(db, ccusto) {
   return db.prepare(`DELETE FROM vale_ccusto WHERE CCusto = ?`).run(key).changes;
 }
 
+function normalizeYmdDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) throw new Error('Data inválida. Use o formato YYYY-MM-DD.');
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const dt = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(dt.getTime()) ||
+    dt.getFullYear() !== year ||
+    dt.getMonth() !== month - 1 ||
+    dt.getDate() !== day
+  ) {
+    throw new Error('Data inválida.');
+  }
+
+  return raw;
+}
+
 function getFuncionariosParaApontamento(db) {
   ensureSchema(db);
   return db.prepare(`
@@ -330,7 +362,8 @@ function getValeApontamentos(db) {
       a.CPF,
       COALESCE(f.Cadastro, '') AS Cadastro,
       COALESCE(f.Nome, '') AS Nome,
-      a.dias_trabalhados,
+      a.data_afastamento,
+      a.data_retorno,
       a.updated_at
     FROM vale_apontamento_funcionario a
     LEFT JOIN (
@@ -338,6 +371,8 @@ function getValeApontamentos(db) {
       FROM funcionario
       GROUP BY TRIM(CPF)
     ) f ON f.CPF = a.CPF
+    WHERE IFNULL(TRIM(a.data_afastamento), '') <> ''
+       OR IFNULL(TRIM(a.data_retorno), '') <> ''
     ORDER BY COALESCE(f.Nome, ''), a.CPF
   `).all();
 }
@@ -345,19 +380,27 @@ function getValeApontamentos(db) {
 function saveValeApontamento(db, payload) {
   ensureSchema(db);
   const cpf = String(payload?.CPF || '').trim();
-  const dias = Number(payload?.dias_trabalhados);
+  const dataAfastamento = normalizeYmdDate(payload?.data_afastamento ?? payload?.dataAfastamento);
+  const dataRetorno = normalizeYmdDate(payload?.data_retorno ?? payload?.dataRetorno);
 
   if (!cpf) throw new Error('CPF é obrigatório.');
-  if (!Number.isFinite(dias) || dias < 0) throw new Error('Dias trabalhados inválido.');
+  if (!dataAfastamento && !dataRetorno) {
+    throw new Error('Informe ao menos uma data de afastamento ou retorno.');
+  }
+
+  if (dataAfastamento && dataRetorno && dataRetorno <= dataAfastamento) {
+    throw new Error('A data de retorno deve ser maior que a data de afastamento.');
+  }
 
   const stmt = db.prepare(`
-    INSERT INTO vale_apontamento_funcionario (CPF, dias_trabalhados, updated_at)
-    VALUES (?, ?, datetime('now'))
+    INSERT INTO vale_apontamento_funcionario (CPF, dias_trabalhados, data_afastamento, data_retorno, updated_at)
+    VALUES (?, 0, ?, ?, datetime('now'))
     ON CONFLICT(CPF) DO UPDATE SET
-      dias_trabalhados = excluded.dias_trabalhados,
+      data_afastamento = excluded.data_afastamento,
+      data_retorno = excluded.data_retorno,
       updated_at = datetime('now')
   `);
-  return stmt.run(cpf, Math.trunc(dias)).changes;
+  return stmt.run(cpf, dataAfastamento, dataRetorno).changes;
 }
 
 function deleteValeApontamento(db, cpf) {

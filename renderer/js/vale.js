@@ -1,5 +1,9 @@
 function setValeStatus(s) { $('valeStatus').textContent = s; }
 function setVinculoStatus(s) { $('vinculoStatus').textContent = s; }
+function setProcessamentoStatus(s) {
+  const el = $('processamentoValeStatus');
+  if (el) el.textContent = s;
+}
 
 function parseMoney(v) {
   const raw = String(v || '').trim().replace(/\./g, '').replace(',', '.');
@@ -110,20 +114,53 @@ async function refreshAll() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  async function generateValeReportFromMenu() {
-    const dataBase = String($('dataBaseVale').value || '').trim();
-    if (!dataBase) return alert('Informe a Data Base para gerar o relatório.');
+  async function generateValeFiles() {
+    const mesReferencia = String($('mesReferenciaVale').value || '').trim();
+    const valorTicket = parseMoney($('valorTicketProcessamento').value);
+    const valorComprocard = parseMoney($('valorComprocardProcessamento').value);
 
-    const res = await window.api.generateValeReport({ dataBase });
-    if (res?.canceled) return;
-    if (!res?.ok) return alert(res?.error || 'Falha ao gerar relatório de vale.');
-    await handleReportSuccess(res.file);
+    if (!mesReferencia) return alert('Informe o mês de referência.');
+    if (!Number.isFinite(valorTicket) || valorTicket < 0) return alert('Informe um valor Ticket válido.');
+    if (!Number.isFinite(valorComprocard) || valorComprocard < 0) return alert('Informe um valor Comprocard válido.');
+
+    setProcessamentoStatus('Gerando...');
+    const res = await window.api.generateValeReport({
+      mesReferencia,
+      valorTicket,
+      valorComprocard
+    });
+
+    if (res?.canceled) {
+      setProcessamentoStatus('Cancelado');
+      return;
+    }
+
+    if (!res?.ok) {
+      setProcessamentoStatus('Erro');
+      return alert(res?.error || 'Falha ao gerar arquivos de vale.');
+    }
+
+    setProcessamentoStatus('OK');
+
+    const resumo = res.resumo || {};
+    const descartados = Array.isArray(res.resumoDescartados) && res.resumoDescartados.length > 0
+      ? '\n\nDescartados:\n' + res.resumoDescartados.map((r) => `${r.total}x ${r.motivo}`).join('\n')
+      : '';
+
+    alert(
+      'Arquivos gerados com sucesso.\n\n' +
+      `COMPROCARD: ${res.comprocardFile || ''}\n` +
+      `TICKET: ${res.ticketFile || ''}\n\n` +
+      `Ticket: ${resumo.totalTicket || 0} registro(s) | R$ ${(resumo.valorTotalTicket || 0).toFixed(2)}\n` +
+      `Comprocard: ${resumo.totalComprocard || 0} registro(s) | R$ ${(resumo.valorTotalComprocard || 0).toFixed(2)}` +
+      descartados
+    );
   }
 
   setupGlobalHeader({
     activePage: 'vale.html',
     pageTitle: 'Vale Alimentação',
-    onGenerateReport: generateValeReportFromMenu
+    onGenerateReport: generateValeFiles
   });
 
   const now = new Date();
@@ -131,6 +168,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
   $('dataBaseVale').value = `${y}-${m}-${d}`;
+  $('mesReferenciaVale').value = `${y}-${m}`;
+
+  $('btnGerarArquivosVale').addEventListener('click', async () => {
+    try {
+      await generateValeFiles();
+    } catch (e) {
+      setProcessamentoStatus('Erro');
+      alert(String(e?.message || e));
+    }
+  });
 
   $('btnSalvarVale').addEventListener('click', async () => {
     const idText = String($('idVale').value || '').trim();
@@ -262,11 +309,30 @@ window.addEventListener('DOMContentLoaded', () => {
     await loadVinculos();
   });
 
-  $('btnAbrirFaltas').addEventListener('click', async () => {
+  async function openFaltas() {
     const res = await window.api.openFaltasWindow();
     if (!res?.ok) {
       alert(res?.error || 'Falha ao abrir a janela de faltas.');
     }
+  }
+
+  async function openAjustes() {
+    const res = await window.api.openValeAjustesWindow();
+    if (!res?.ok) {
+      alert(res?.error || 'Falha ao abrir a janela de ajustes.');
+    }
+  }
+
+  $('btnAbrirFaltas').addEventListener('click', async () => {
+    await openFaltas();
+  });
+
+  $('btnAbrirFaltasProcesso').addEventListener('click', async () => {
+    await openFaltas();
+  });
+
+  $('btnAbrirAjustes').addEventListener('click', async () => {
+    await openAjustes();
   });
 
   refreshAll().catch((e) => alert(String(e?.message || e)));
