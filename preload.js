@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
   getEmployeesPreview: (maxRows) => ipcRenderer.invoke('get-employees-preview', maxRows),
   getBenefitsPreview: (source, maxRows) => ipcRenderer.invoke('get-benefits-preview', source, maxRows),
   getDependentesPreview: (maxRows) => ipcRenderer.invoke('get-dependentes-preview', maxRows),
+  getGfipPreview: (source, maxRows) => ipcRenderer.invoke('get-gfip-preview', source, maxRows),
   getValesAlimentacao: () => ipcRenderer.invoke('get-vales-alimentacao'),
   saveValeAlimentacao: (payload) => ipcRenderer.invoke('save-vale-alimentacao', payload),
   deleteValeAlimentacao: (idVale) => ipcRenderer.invoke('delete-vale-alimentacao', idVale),
@@ -28,6 +29,8 @@ contextBridge.exposeInMainWorld('api', {
   importXlsx: (payload) => ipcRenderer.invoke('import-xlsx', payload),
   importPdf: (payload) => ipcRenderer.invoke('import-pdf', payload),
   deleteBenefitsBySource: (source) => ipcRenderer.invoke('delete-benefits-by-source', source),
+  clearGfip: (source) => ipcRenderer.invoke('clear-gfip', source),
+  exportGfipXlsx: (payload) => ipcRenderer.invoke('export-gfip-xlsx', payload),
   exportDependentesUnimed: () => ipcRenderer.invoke('export-dependentes-unimed'),
   importDependentesUnimed: () => ipcRenderer.invoke('import-dependentes-unimed'),
 

@@ -159,6 +159,17 @@ function clearValeFaltas(db) {
   return safeDeleteAll(db, 'vale_falta_funcionario');
 }
 
+function resolveGfipTable(source) {
+  const raw = String(source || '').trim().toLowerCase();
+  if (raw === 'gfip_anterior') return 'gfip_anterior';
+  if (raw === 'gfip_atual' || raw === 'gfip' || !raw) return 'gfip_atual';
+  throw new Error('Fonte GFIP inválida.');
+}
+
+function clearGfip(db, source) {
+  return safeDeleteAll(db, resolveGfipTable(source));
+}
+
 function deleteBenefitsBySource(db, source) {
   const s = String(source || '').toLowerCase();
   const table =
@@ -198,6 +209,56 @@ function getBenefitsPreview(db, source, maxRows = 5000) {
 // ✅ Preview dependentes
 function getDependentesPreview(db, maxRows = 5000) {
   return getTablePreview(db, 'unimed_dependente', maxRows);
+}
+
+function buildGfipPreviewColumns() {
+  return [
+    'nome_trabalhador',
+    'pis_pasep_ci',
+    'admissao',
+    'rem_sem_13_sal',
+    'contrib_seg_devida',
+    'base_cal_prev_social'
+  ];
+}
+
+function buildGfipRows(db, source, maxRows = null) {
+  const table = resolveGfipTable(source);
+  if (!tableExists(db, table)) return [];
+
+  // Mantem o schema interno fiel ao PDF e monta a pre-visualizacao no layout pedido.
+  // A coluna "CONTRIB SEG DEVIDA" corresponde ao 4o valor numerico do PDF.
+  // A "BASE CAL PREV SOCIAL" exibida aqui reaproveita o campo de base capturado na importacao.
+  const sql = `
+    SELECT
+      nome_trabalhador,
+      pis_pasep_ci,
+      admissao,
+      rem_sem_13_sal,
+      contrib_seg_devida,
+      base_cal_13_sal_prev_social AS base_cal_prev_social
+    FROM "${table}"
+    ORDER BY ordem
+    ${maxRows != null ? 'LIMIT ?' : ''}
+  `;
+
+  return maxRows != null
+    ? db.prepare(sql).all(maxRows)
+    : db.prepare(sql).all();
+}
+
+function getGfipPreview(db, source, maxRows = 5000) {
+  const columns = buildGfipPreviewColumns();
+  const rows = buildGfipRows(db, source, maxRows);
+
+  return {
+    columns,
+    rows: rows.map((row) => columns.map((column) => row[column]))
+  };
+}
+
+function getGfipExportRows(db, source) {
+  return buildGfipRows(db, source, null);
 }
 
 function getDependentesUnimedForExport(db) {
@@ -755,10 +816,13 @@ module.exports = {
   ensureSchema,
   clearBenefits,
   clearValeFaltas,
+  clearGfip,
   deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
+  getGfipPreview,
+  getGfipExportRows,
   getDependentesUnimedForExport,
   getValesAlimentacao,
   saveValeAlimentacao,

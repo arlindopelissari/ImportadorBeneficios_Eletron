@@ -36,6 +36,13 @@ function normalizeFilePath(v) {
   return '';
 }
 
+function resolveGfipTable(source) {
+  const src = String(source || '').toLowerCase();
+  if (src === 'gfip_anterior') return 'gfip_anterior';
+  if (src === 'gfip_atual' || src === 'gfip') return 'gfip_atual';
+  return '';
+}
+
 function runPythonImport({ source, pdfPath, onLine }) {
   return new Promise((resolve, reject) => {
     const src = String(source || '').toLowerCase();
@@ -44,7 +51,10 @@ function runPythonImport({ source, pdfPath, onLine }) {
       unimed: 'planounimed_cli.py',
       odontoprev: 'planoodonto_cli.py',
       uphealth: 'planoup_cli.py',
-      up: 'planoup_cli.py'
+      up: 'planoup_cli.py',
+      gfip: 'gfip_cli.py',
+      gfip_atual: 'gfip_cli.py',
+      gfip_anterior: 'gfip_cli.py'
     };
 
     const scriptName = scriptMap[src];
@@ -78,6 +88,8 @@ function runPythonImport({ source, pdfPath, onLine }) {
     const dbPath = resolveDbPath();
 
     const args = ['-u', scriptPath, '--pdf', pdfAbs, '--db', dbPath];
+    const gfipTable = resolveGfipTable(src);
+    if (gfipTable) args.push('--table', gfipTable);
 
     let stderrAll = '';
 

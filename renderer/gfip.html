@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>GFIP (PDF)</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div id="globalHeader"></div>
+
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Importação GFIP (Python)</div>
+
+      <div class="line">
+        <label for="gfipSource">Origem</label>
+        <select id="gfipSource">
+          <option value="gfip_atual">GFIP_ATUAL</option>
+          <option value="gfip_anterior">GFIP_ANTERIOR</option>
+        </select>
+      </div>
+
+      <div class="line">
+        <button class="btn" id="btnPickPdf" type="button">Selecionar PDF</button>
+        <input id="pdfPath" type="text" readonly />
+      </div>
+
+      <div class="line">
+        <button class="btn" id="btnImportPdf" type="button">Importar GFIP</button>
+        <button class="btn" id="btnClearGfip" type="button">Limpar GFIP</button>
+        <button class="btn" id="btnExportGfip" type="button">Exportar XLSX (2 abas)</button>
+      </div>
+
+      <div class="line">
+        <progress id="gfipProg" max="100" value="0"></progress>
+        <span class="status" id="gfipStatus">Pronto</span>
+      </div>
+
+      <div class="line line--stack">
+        <label for="log">Log</label>
+        <textarea id="log" readonly></textarea>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="title">Prévia GFIP selecionada</div>
+      <div class="grid-wrapper">
+        <div id="gfipTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/gfip.js"></script>
+</body>
+</html>

@@ -29,6 +29,11 @@ function prettyHeaderName(name) {
     cpf_func: 'CPF Funcionário',
     cpfresponsavel: 'CPF Responsável',
     total_valor: 'Valor Total',
+    nome_trabalhador: 'Nome Trabalhador',
+    pis_pasep_ci: 'PIS/PASEP/CI',
+    rem_sem_13_sal: 'Rem Sem 13° Sal',
+    contrib_seg_devida: 'Contrib Seg Devida',
+    base_cal_prev_social: 'Base Cál Prev Social',
     tipo_pendencia: 'Tipo de Pendência',
     id: 'ID',
     tp: 'Tipo',
@@ -80,7 +85,8 @@ function navHtml(active) {
     ['employees.html', 'Funcionários (XLSX)'],
     ['benefits.html', 'Planos (PDF)'],
     ['maintenance.html', 'Depend. Unimed'],
-    ['vale.html', 'Vale Alimentação']
+    ['vale.html', 'Vale Alimentação'],
+    ['gfip.html', 'GFIP']
   ];
 
   return items.map(([href, label]) => {

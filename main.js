@@ -9,10 +9,13 @@ const {
   ensureSchema,
   clearBenefits,
   clearValeFaltas,
+  clearGfip,
   deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
+  getGfipPreview,
+  getGfipExportRows,
   getDependentesUnimedForExport,
   getValesAlimentacao,
   saveValeAlimentacao,
@@ -40,6 +43,7 @@ const { importEmployeesXlsx } = require('./services/xlsxImporter');
 const { runPythonImport } = require('./services/pythonRunner');
 const { generateUnimedReport } = require('./services/unimedReport');
 const { generateValeReport } = require('./services/valeReport');
+const { createGfipWorkbook } = require('./services/gfipExport');
 const { buildDefaultOutputNames } = require('./services/valeProcessor');
 
 let mainWindow;
@@ -49,6 +53,7 @@ let lastXlsxDir = null;
 let lastPdfDir = null;
 let lastDependentesDir = null;
 let lastValeExportDir = null;
+let lastGfipExportDir = null;
 
 // ============================
 // Paths (DEV vs PACKAGED)
@@ -156,6 +161,7 @@ app.whenReady().then(() => {
   lastPdfDir = app.getPath('documents');
   lastDependentesDir = app.getPath('documents');
   lastValeExportDir = app.getPath('documents');
+  lastGfipExportDir = app.getPath('documents');
 
   const db = openDb();
   ensureSchema(db);
@@ -189,7 +195,7 @@ ipcMain.handle('pick-xlsx', async () => {
 
 ipcMain.handle('pick-pdf', async () => {
   const res = await dialog.showOpenDialog(mainWindow, {
-    title: 'Selecione o PDF de planos',
+    title: 'Selecione o arquivo PDF',
     defaultPath: lastPdfDir || app.getPath('documents'),
     properties: ['openFile'],
     filters: [{ name: 'PDF', extensions: ['pdf'] }]
@@ -227,6 +233,16 @@ ipcMain.handle('get-dependentes-preview', async (_evt, maxRows = 5000) => {
   try {
     ensureSchema(db);
     return getDependentesPreview(db, maxRows);
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-gfip-preview', async (_evt, source, maxRows = 5000) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return getGfipPreview(db, source, maxRows);
   } finally {
     db.close();
   }
@@ -446,6 +462,65 @@ ipcMain.handle('delete-benefits-by-source', async (_evt, source) => {
     return { ok: false, error: String(e?.message || e) };
   } finally {
     db.close();
+  }
+});
+
+ipcMain.handle('clear-gfip', async (_evt, source) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = clearGfip(db, source);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('export-gfip-xlsx', async () => {
+  let db;
+  try {
+    db = openDb();
+    ensureSchema(db);
+
+    const rowsAnterior = getGfipExportRows(db, 'gfip_anterior');
+    const rowsAtual = getGfipExportRows(db, 'gfip_atual');
+    if (!rowsAnterior.length && !rowsAtual.length) {
+      return { ok: false, error: 'Não existem registros em GFIP_ANTERIOR ou GFIP_ATUAL para exportar.' };
+    }
+
+    const defaultPath = path.join(
+      lastGfipExportDir || app.getPath('documents'),
+      `GFIP_ANTERIOR_E_ATUAL_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
+    );
+
+    const res = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar GFIP_ANTERIOR + GFIP_ATUAL',
+      defaultPath,
+      filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    });
+
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+
+    const { workbook, summary } = createGfipWorkbook({
+      gfipAnteriorRows: rowsAnterior,
+      gfipAtualRows: rowsAtual
+    });
+    XLSX.writeFile(workbook, res.filePath);
+
+    lastGfipExportDir = path.dirname(res.filePath);
+    return {
+      ok: true,
+      file: res.filePath,
+      exportedAnterior: summary.GFIP_ANTERIOR.rowCount,
+      exportedAtual: summary.GFIP_ATUAL.rowCount,
+      summary
+    };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try { if (db) db.close(); } catch {}
   }
 });
 
