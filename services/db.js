@@ -170,6 +170,10 @@ function clearGfip(db, source) {
   return safeDeleteAll(db, resolveGfipTable(source));
 }
 
+function clearRelVerbas(db) {
+  return safeDeleteAll(db, 'relverbas');
+}
+
 function deleteBenefitsBySource(db, source) {
   const s = String(source || '').toLowerCase();
   const table =
@@ -259,6 +263,93 @@ function getGfipPreview(db, source, maxRows = 5000) {
 
 function getGfipExportRows(db, source) {
   return buildGfipRows(db, source, null);
+}
+
+function buildRelVerbasPreviewColumns() {
+  return [
+    'ordem',
+    'fl',
+    'matricula',
+    'nome',
+    'cpf',
+    'ano_mes',
+    'cod_verba',
+    'desc_verba',
+    'ref_qtd',
+    'valor',
+    'data_pagto',
+    'ccusto'
+  ];
+}
+
+function getRelVerbasPreview(db, maxRows = 5000) {
+  if (!tableExists(db, 'relverbas')) return { columns: [], rows: [] };
+
+  const columns = buildRelVerbasPreviewColumns();
+  const rows = db.prepare(`
+    SELECT ${columns.map((column) => `"${column}"`).join(', ')}
+      FROM relverbas
+     ORDER BY ordem
+     LIMIT ?
+  `).all(maxRows);
+
+  return {
+    columns,
+    rows: rows.map((row) => columns.map((column) => row[column]))
+  };
+}
+
+function getRelVerbasRubricas(db) {
+  if (!tableExists(db, 'relverbas')) return [];
+
+  return db.prepare(`
+    SELECT
+      TRIM(cod_verba) AS cod_verba,
+      MAX(TRIM(desc_verba)) AS desc_verba,
+      COUNT(*) AS total_registros
+    FROM relverbas
+    WHERE IFNULL(TRIM(cod_verba), '') <> ''
+    GROUP BY TRIM(cod_verba)
+    ORDER BY
+      CASE
+        WHEN TRIM(cod_verba) GLOB '[0-9]*' THEN CAST(TRIM(cod_verba) AS INTEGER)
+        ELSE 999999999
+      END,
+      TRIM(cod_verba)
+  `).all();
+}
+
+function getRelVerbasExportRows(db, codigos = []) {
+  if (!tableExists(db, 'relverbas')) return [];
+
+  const normalizedCodes = Array.from(
+    new Set(
+      (codigos || [])
+        .map((code) => String(code || '').trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (!normalizedCodes.length) return [];
+
+  const placeholders = normalizedCodes.map(() => '?').join(', ');
+  return db.prepare(`
+    SELECT
+      fl,
+      matricula,
+      nome,
+      cpf,
+      ano_mes,
+      cod_verba,
+      desc_verba,
+      ref_qtd,
+      valor,
+      data_pagto,
+      ccusto
+    FROM relverbas
+    WHERE TRIM(cod_verba) IN (${placeholders})
+    ORDER BY ordem
+  `).all(...normalizedCodes);
 }
 
 function getDependentesUnimedForExport(db) {
@@ -817,11 +908,15 @@ module.exports = {
   clearBenefits,
   clearValeFaltas,
   clearGfip,
+  clearRelVerbas,
   deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
   getGfipPreview,
+  getRelVerbasPreview,
+  getRelVerbasRubricas,
+  getRelVerbasExportRows,
   getGfipExportRows,
   getDependentesUnimedForExport,
   getValesAlimentacao,

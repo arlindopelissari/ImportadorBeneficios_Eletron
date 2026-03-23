@@ -26,48 +26,6 @@
         <span class="status" id="processamentoValeStatus">O Ticket será gerado em .xlsx com os dados dos beneficiários.</span>
       </div>
     </div>
-
-    <div class="card">
-      <div class="title">Cadastro de Vale Alimentação</div>
-      <div class="line">
-        <input id="idVale" type="hidden" />
-        <label for="dataBaseVale">Data Base</label>
-        <input id="dataBaseVale" type="date" />
-        <label for="nomeVale">Nome</label>
-        <input id="nomeVale" type="text" />
-        <label for="valorVale">Valor</label>
-        <input id="valorVale" type="text" />
-        <label for="diasTrabalhadosVale">Dias Trabalhados</label>
-        <input id="diasTrabalhadosVale" type="number" min="0" step="1" />
-        <button class="btn" id="btnSalvarVale">Salvar</button>
-        <button class="btn" id="btnLimparVale">Limpar</button>
-        <button class="btn" id="btnAbrirFaltas">Manter Faltas</button>
-      </div>
-      <div class="line">
-        <span class="status" id="valeStatus">Pronto</span>
-      </div>
-      <div class="grid-wrapper">
-        <div id="valeTable"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="title">Vínculo Centro de Custo x Vale Alimentação</div>
-      <div class="line">
-        <label for="ccustoSelect">Centro de Custo</label>
-        <select id="ccustoSelect"></select>
-        <label for="valeSelect">Vale</label>
-        <select id="valeSelect"></select>
-        <button class="btn" id="btnSalvarVinculo">Vincular</button>
-      </div>
-      <div class="line">
-        <span class="status" id="vinculoStatus">Pronto</span>
-      </div>
-      <div class="grid-wrapper">
-        <div id="vinculoTable"></div>
-      </div>
-    </div>
-
   </div>
 
   <script src="./js/common.js"></script>

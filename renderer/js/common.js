@@ -29,6 +29,17 @@ function prettyHeaderName(name) {
     cpf_func: 'CPF Funcionário',
     cpfresponsavel: 'CPF Responsável',
     total_valor: 'Valor Total',
+    fl: 'FL',
+    matricula: 'Matrícula',
+    nome: 'Nome',
+    ano_mes: 'Ano / Mês',
+    cod_verba: 'CÓD. VERBA',
+    desc_verba: 'DESC. VERBA',
+    ref_qtd: 'REF. QTD',
+    valor: 'Valor',
+    data_pagto: 'DATA_PAGTO',
+    ccusto: 'C. Custo',
+    ordem: 'Ordem',
     nome_trabalhador: 'Nome Trabalhador',
     pis_pasep_ci: 'PIS/PASEP/CI',
     rem_sem_13_sal: 'Rem Sem 13° Sal',
@@ -86,7 +97,8 @@ function navHtml(active) {
     ['benefits.html', 'Planos (PDF)'],
     ['maintenance.html', 'Depend. Unimed'],
     ['vale.html', 'Vale Alimentação'],
-    ['gfip.html', 'GFIP']
+    ['gfip.html', 'GFIP'],
+    ['relverbas.html', 'Rel. Verbas']
   ];
 
   return items.map(([href, label]) => {

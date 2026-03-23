@@ -10,11 +10,15 @@ const {
   clearBenefits,
   clearValeFaltas,
   clearGfip,
+  clearRelVerbas,
   deleteBenefitsBySource,
   getEmployeesPreview,
   getBenefitsPreview,
   getDependentesPreview,
   getGfipPreview,
+  getRelVerbasPreview,
+  getRelVerbasRubricas,
+  getRelVerbasExportRows,
   getGfipExportRows,
   getDependentesUnimedForExport,
   getValesAlimentacao,
@@ -44,6 +48,7 @@ const { runPythonImport } = require('./services/pythonRunner');
 const { generateUnimedReport } = require('./services/unimedReport');
 const { generateValeReport } = require('./services/valeReport');
 const { createGfipWorkbook } = require('./services/gfipExport');
+const { createRelVerbasWorkbook } = require('./services/relVerbasExport');
 const { buildDefaultOutputNames } = require('./services/valeProcessor');
 
 let mainWindow;
@@ -54,6 +59,7 @@ let lastPdfDir = null;
 let lastDependentesDir = null;
 let lastValeExportDir = null;
 let lastGfipExportDir = null;
+let lastRelVerbasExportDir = null;
 
 // ============================
 // Paths (DEV vs PACKAGED)
@@ -162,6 +168,7 @@ app.whenReady().then(() => {
   lastDependentesDir = app.getPath('documents');
   lastValeExportDir = app.getPath('documents');
   lastGfipExportDir = app.getPath('documents');
+  lastRelVerbasExportDir = app.getPath('documents');
 
   const db = openDb();
   ensureSchema(db);
@@ -243,6 +250,28 @@ ipcMain.handle('get-gfip-preview', async (_evt, source, maxRows = 5000) => {
   try {
     ensureSchema(db);
     return getGfipPreview(db, source, maxRows);
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-rel-verbas-preview', async (_evt, maxRows = 5000) => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return getRelVerbasPreview(db, maxRows);
+  } finally {
+    db.close();
+  }
+});
+
+ipcMain.handle('get-rel-verbas-rubricas', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    return { ok: true, rows: getRelVerbasRubricas(db) };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
   } finally {
     db.close();
   }
@@ -478,6 +507,19 @@ ipcMain.handle('clear-gfip', async (_evt, source) => {
   }
 });
 
+ipcMain.handle('clear-rel-verbas', async () => {
+  const db = openDb();
+  try {
+    ensureSchema(db);
+    const changes = clearRelVerbas(db);
+    return { ok: true, changes };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    db.close();
+  }
+});
+
 ipcMain.handle('export-gfip-xlsx', async () => {
   let db;
   try {
@@ -516,6 +558,49 @@ ipcMain.handle('export-gfip-xlsx', async () => {
       exportedAnterior: summary.GFIP_ANTERIOR.rowCount,
       exportedAtual: summary.GFIP_ATUAL.rowCount,
       summary
+    };
+  } catch (e) {
+    return { ok: false, error: String(e?.message || e) };
+  } finally {
+    try { if (db) db.close(); } catch {}
+  }
+});
+
+ipcMain.handle('export-rel-verbas-xlsx', async (_evt, payload) => {
+  let db;
+  try {
+    const codigos = Array.isArray(payload?.codigos) ? payload.codigos : [];
+
+    db = openDb();
+    ensureSchema(db);
+
+    const rows = getRelVerbasExportRows(db, codigos);
+    if (!rows.length) {
+      return { ok: false, error: 'Não existem registros para os CÓD. VERBA selecionados.' };
+    }
+
+    const defaultPath = path.join(
+      lastRelVerbasExportDir || app.getPath('documents'),
+      `Relatorio_Verbas_${new Date().toISOString().replace(/:/g, '').slice(0, 19)}.xlsx`
+    );
+
+    const res = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar Rel. Verbas',
+      defaultPath,
+      filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+    });
+
+    if (res.canceled || !res.filePath) return { ok: false, canceled: true };
+
+    const { workbook, exported } = createRelVerbasWorkbook(rows);
+    XLSX.writeFile(workbook, res.filePath);
+
+    lastRelVerbasExportDir = path.dirname(res.filePath);
+    return {
+      ok: true,
+      file: res.filePath,
+      exported,
+      codigos: Array.from(new Set(codigos.map((code) => String(code || '').trim()).filter(Boolean)))
     };
   } catch (e) {
     return { ok: false, error: String(e?.message || e) };

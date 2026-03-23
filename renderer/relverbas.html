@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rel. Verbas (PDF)</title>
+  <link rel="stylesheet" href="./css/app.css" />
+  <link rel="stylesheet" href="./css/modal.css" />
+  <style>
+    .modal-content--rubricas {
+      width: 860px;
+    }
+
+    .rubrica-tools {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .rubrica-summary {
+      color: #cfd6e2;
+      font-size: 13px;
+    }
+
+    .rubrica-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .rubrica-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 10px;
+      max-height: 48vh;
+      overflow: auto;
+    }
+
+    .rubrica-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 10px;
+      background: #111826;
+    }
+
+    .rubrica-item input {
+      margin-top: 4px;
+    }
+
+    .rubrica-item__code {
+      display: block;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .rubrica-item__desc {
+      display: block;
+      color: #cfd6e2;
+      line-height: 1.35;
+    }
+
+    .rubrica-item__count {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #8ea0bc;
+    }
+  </style>
+</head>
+<body>
+  <div id="globalHeader"></div>
+
+  <div class="page-wrap">
+    <div class="card">
+      <div class="title">Importação Rel. Verbas (Python)</div>
+
+      <div class="line">
+        <button class="btn" id="btnPickPdf" type="button">Selecionar PDF</button>
+        <input id="pdfPath" type="text" readonly />
+      </div>
+
+      <div class="line">
+        <button class="btn" id="btnImportPdf" type="button">Importar Rel. Verbas</button>
+        <button class="btn" id="btnClearRelVerbas" type="button">Limpar Rel. Verbas</button>
+        <button class="btn" id="btnExportRelVerbas" type="button">Exportar Excel</button>
+      </div>
+
+      <div class="line">
+        <progress id="relVerbasProg" max="100" value="0"></progress>
+        <span class="status" id="relVerbasStatus">Pronto</span>
+      </div>
+
+      <div class="line line--stack">
+        <label for="log">Log</label>
+        <textarea id="log" readonly></textarea>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="title">Prévia Rel. Verbas</div>
+      <div class="grid-wrapper">
+        <div id="relVerbasTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalRelVerbasRubricas" class="modal" style="display:none;">
+    <div class="modal-content modal-content--rubricas">
+      <div class="modal-header">
+        <span>Exportar por CÓD. VERBA</span>
+        <button id="btnCloseRelVerbasModalTop" class="modal-close" title="Fechar" type="button">×</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-text">
+          Marque os CÓD. VERBA que deseja exportar. A coluna <strong>DESC. VERBA</strong> representa a descrição de cada código.
+        </p>
+
+        <div class="rubrica-tools">
+          <div class="rubrica-summary" id="relVerbasRubricaSummary">Carregando...</div>
+          <div class="rubrica-actions">
+            <button class="btn" id="btnSelectAllRubricas" type="button">Marcar todos</button>
+            <button class="btn" id="btnClearAllRubricas" type="button">Limpar seleção</button>
+          </div>
+        </div>
+
+        <div class="rubrica-list" id="relVerbasRubricaList"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn" id="btnCloseRelVerbasModalBottom" type="button">Cancelar</button>
+        <button class="btn" id="btnConfirmExportRelVerbas" type="button">Exportar selecionados</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./js/common.js"></script>
+  <script src="./js/relverbas.js"></script>
+</body>
+</html>

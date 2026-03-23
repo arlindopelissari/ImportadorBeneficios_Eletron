@@ -52,6 +52,9 @@ function runPythonImport({ source, pdfPath, onLine }) {
       odontoprev: 'planoodonto_cli.py',
       uphealth: 'planoup_cli.py',
       up: 'planoup_cli.py',
+      relverbas: 'relverbas_cli.py',
+      rel_verbas: 'relverbas_cli.py',
+      verbas: 'relverbas_cli.py',
       gfip: 'gfip_cli.py',
       gfip_atual: 'gfip_cli.py',
       gfip_anterior: 'gfip_cli.py'
